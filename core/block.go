@@ -8,7 +8,10 @@ import (
 	"time"
 )
 
+// This should get moved to a crypto package in the future
 const zeroHash = "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+var ErrSealed = errors.New("Block already sealed")
 
 // Block is a collection of transactions that happen together
 type Block struct {
@@ -31,17 +34,14 @@ func NewBlock(index uint64, timestamp time.Time, data string, previousHash strin
 	return b
 }
 
-// NewGenesisBlock creates a new genesis Block
-func NewGenesisBlock() *Block {
-	return NewBlock(0, time.Now(), "Genesis Block", zeroHash)
-}
-
 // Seal finalizes a block by hashing it and will return an error if previously sealed
 func (b *Block) Seal() error {
 	if b.Hash != "" {
-		return errors.New("Block already sealed")
+		return ErrSealed
 	}
 	b.Hash = blockHash(b)
+	// In the future, this will probably need to do some additional work
+	// like cryptographically signing the block
 	return nil
 }
 

@@ -1,4 +1,4 @@
-package core_test
+package core
 
 import (
 	"reflect"
@@ -6,19 +6,15 @@ import (
 )
 
 func TestNewBlockChain(t *testing.T) {
-	type args struct {
-		genesis *Block
-	}
 	tests := []struct {
 		name string
-		args args
 		want *BlockChain
 	}{
 		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBlockChain(tt.args.genesis); !reflect.DeepEqual(got, tt.want) {
+			if got := NewBlockChain(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockChain() = %v, want %v", got, tt.want)
 			}
 		})
@@ -26,22 +22,16 @@ func TestNewBlockChain(t *testing.T) {
 }
 
 func TestBlockChain_Head(t *testing.T) {
-	type fields struct {
-		Blocks []*Block
-	}
 	tests := []struct {
-		name   string
-		fields fields
-		want   *Block
+		name string
+		c    *BlockChain
+		want *Block
 	}{
 		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := &BlockChain{
-				Blocks: tt.fields.Blocks,
-			}
-			if got := c.Head(); !reflect.DeepEqual(got, tt.want) {
+			if got := tt.c.Head(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BlockChain.Head() = %v, want %v", got, tt.want)
 			}
 		})

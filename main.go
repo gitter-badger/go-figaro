@@ -7,9 +7,8 @@ import (
 )
 
 func main() {
-	g := core.NewGenesisBlock()
-	logBlock(g)
-	chain := core.NewBlockChain(g)
+	chain := core.NewBlockChain()
+	logBlock(chain.Head())
 	for i := 1; i <= 20; i++ {
 		h := chain.Head()
 		d := fmt.Sprintf("This is block number %d", h.Index+1)

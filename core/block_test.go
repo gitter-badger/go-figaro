@@ -1,4 +1,4 @@
-package core_test
+package core
 
 import (
 	"reflect"
@@ -24,22 +24,6 @@ func TestNewBlock(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewBlock(tt.args.index, tt.args.timestamp, tt.args.data, tt.args.previousHash); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlock() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestNewGenesisBlock(t *testing.T) {
-	tests := []struct {
-		name string
-		want *Block
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := NewGenesisBlock(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewGenesisBlock() = %v, want %v", got, tt.want)
 			}
 		})
 	}
