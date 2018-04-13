@@ -43,17 +43,22 @@ func TestNewBlock(t *testing.T) {
 }
 
 func TestBlock_Seal(t *testing.T) {
+	unsealedBlock := generateRandomBlock()
+
+	sealedBlock := copyBlock(unsealedBlock)
+	sealedBlock.Hash = blockHash(sealedBlock)
+
 	tests := []struct {
-		name    string
-		b       *Block
-		wantErr bool
+		name string
+		b    *Block
+		want *Block
 	}{
-	// TODO: Add test cases.
+		{"unsealedBlock", unsealedBlock, sealedBlock},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.b.Seal(); (err != nil) != tt.wantErr {
-				t.Errorf("Block.Seal() error = %v, wantErr %v", err, tt.wantErr)
+			if got := tt.b.Seal(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Block.Seal() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -96,11 +101,22 @@ func TestBlock_Valid(t *testing.T) {
 }
 
 func Test_blockHash(t *testing.T) {
-	// blockOrig := generateRandomBlock()
-	// blockSame := copyBlock(blockOrig)
-	// diffTime, _ := time.Parse(YYYY_MM_DD, "2001-01-01")
-	// blockDiffTime := copyBlock(blockOrig)
-	// blockDiffTime.TimeStamp = diffTime
+	blockOrig := generateRandomBlock()
+
+	blockSame := copyBlock(blockOrig)
+
+	blockDiffIndex := copyBlock(blockOrig)
+	blockDiffIndex.Index = 123
+
+	diffTime, _ := time.Parse(YYYY_MM_DD, "2001-01-01")
+	blockDiffTime := copyBlock(blockOrig)
+	blockDiffTime.TimeStamp = diffTime
+
+	blockDiffData := copyBlock(blockOrig)
+	blockDiffData.Data = "Hal"
+
+	blockDiffPrev := copyBlock(blockOrig)
+	blockDiffPrev.PreviousHash = "3000"
 
 	type args struct {
 		b *Block
@@ -111,13 +127,16 @@ func Test_blockHash(t *testing.T) {
 		test   string
 		equals bool
 	}{
-	// {"WithSameValues", args{blockOrig}, blockHash(blockOrig), true},
-	// {"WithSameValues", args{blockOrig}, blockHash(blockSame), true},
-	// {"WithDiffTimes", args{blockDiffTime}, blockHash(blockOrig), false},
+		{"WithSame", args{blockOrig}, blockHash(blockOrig), true},
+		{"WithSameValues", args{blockOrig}, blockHash(blockSame), true},
+		{"WithDiffIndex", args{blockDiffIndex}, blockHash(blockOrig), false},
+		{"WithDiffTimes", args{blockDiffTime}, blockHash(blockOrig), false},
+		{"WithDiffData", args{blockDiffData}, blockHash(blockOrig), false},
+		{"WithDiffPrev", args{blockDiffPrev}, blockHash(blockOrig), false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := blockHash(tt.args.b); (got == tt.test) == tt.equals {
+			if got := blockHash(tt.args.b); (got == tt.test) != tt.equals {
 				t.Errorf("blockHash(), (%v == %v) == %v", got, tt.test, tt.equals)
 			}
 		})
