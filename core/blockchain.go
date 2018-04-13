@@ -47,7 +47,7 @@ func (c *BlockChain) ReceiveBlock(block *Block) error {
 		return ErrPrevHash
 	}
 	// Validate that the current hash
-	if !block.Validate() {
+	if !block.Valid() {
 		return ErrHash
 	}
 	c.Blocks = append(c.Blocks, block)
