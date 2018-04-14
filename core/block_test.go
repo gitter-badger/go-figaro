@@ -116,7 +116,7 @@ func Test_blockHash(t *testing.T) {
 	blockDiffData.Data = "Hal"
 
 	blockDiffPrev := copyBlock(blockOrig)
-	blockDiffPrev.PreviousHash = "3000"
+	blockDiffPrev.PreviousHash = "9000"
 
 	type args struct {
 		b *Block
