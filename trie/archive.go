@@ -4,7 +4,7 @@ package trie
 import (
 	"bytes"
 
-	figaro "github.com/go-figaro"
+	"github.com/figaro-tech/figaro"
 )
 
 // Archive impelements a figaro.ArchiveTrie
