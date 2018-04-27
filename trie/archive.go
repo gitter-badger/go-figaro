@@ -1,65 +1,72 @@
+// Package trie implements the figaro.*Trie interfaces
 package trie
 
 import (
 	"bytes"
+
+	figaro "github.com/go-figaro"
 )
 
-// ArchiveTrie implements a binary Merkle trie
-//
-// It is intended for archive data that is created
-// as a batch and then never updated. The entire trie
-// is saved as a single entry in a key/value store,
-// but efficient proofs can be provided that a single
-// value resides at a given index
-type ArchiveTrie struct {
-	store  Store
-	cypher Cypher
-	encdec EncoderDecoder
+// Archive impelements a figaro.ArchiveTrie
+type Archive struct {
+	Store  figaro.Store
+	Hasher figaro.Hasher
+	Encdec figaro.EncoderDecoder
 }
 
-// NewArchiveTrie creates a new ArchiveTrie ready for use
-func NewArchiveTrie(store Store, cypher Cypher, encdec EncoderDecoder) *ArchiveTrie {
-	return &ArchiveTrie{store: store, cypher: cypher, encdec: encdec}
-}
-
-// Archive stores data in a key/value store, returning a root hash
-func (t *ArchiveTrie) Archive(data [][]byte) ([]byte, error) {
+// Save creates a new entry for the batch of data
+// and returns a Merkle root
+func (tr *Archive) Save(batch [][]byte) []byte {
 	// construct a root hash, end then store the encoded data at the root
 	// if data has an odd length, append nil to make it even
-	if len(data)&1 == 1 {
-		data = append(data, nil)
+	if len(batch)&1 == 1 {
+		batch = append(batch, nil)
 	}
 	// hash the first layer
-	level := make([][]byte, 0, len(data))
-	for _, d := range data {
-		level = append(level, t.cypher.Hash(d))
+	level := make([][]byte, 0, len(batch))
+	for _, d := range batch {
+		level = append(level, tr.Hasher.Hash(d))
 	}
 	// build up the trie until we have a root
 	for len(level) > 1 {
 		levelHash := make([][]byte, 0, len(level)/2)
 		for i := 0; i < len(level); i += 2 {
-			levelHash = append(levelHash, t.pairHash(level[i], level[i+1]))
+			levelHash = append(levelHash, tr.Hasher.Hash(level[i], level[i+1]))
 		}
 		level = levelHash
 	}
 	// set and return the root hash
 	h := level[0]
-	e, err := t.encdec.Encode(data)
+	e, err := tr.Encdec.Encode(batch)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-	t.store.Set(h, e)
-	return h, nil
+	tr.Store.Set(h, e)
+	return h
 }
 
-// Retrieve gets data at a given index, given a root
-func (t *ArchiveTrie) Retrieve(root []byte, index int) []byte {
-	b := t.store.Get(root)
+// Retrieve returns a batch of data given a Merkle root
+func (tr *Archive) Retrieve(root []byte) [][]byte {
+	b := tr.Store.Get(root)
 	if b == nil {
 		return nil
 	}
 	var data [][]byte
-	err := t.encdec.Decode(&data, b)
+	err := tr.Encdec.Decode(&data, b)
+	if err != nil {
+		panic(err)
+	}
+	return data
+}
+
+// Get returns the value at the Merkle root and index
+func (tr *Archive) Get(root []byte, index int) []byte {
+	b := tr.Store.Get(root)
+	if b == nil {
+		return nil
+	}
+	var data [][]byte
+	err := tr.Encdec.Decode(&data, b)
 	if err != nil {
 		panic(err)
 	}
@@ -69,29 +76,28 @@ func (t *ArchiveTrie) Retrieve(root []byte, index int) []byte {
 	return data[index]
 }
 
-// Prove returns a merkle proof of data at a given index into a root
-func (t *ArchiveTrie) Prove(root []byte, index int, datum []byte) ([][]byte, error) {
-	b := t.store.Get(root)
+// Prove returns the value and proof at the Merkle root and index
+func (tr *Archive) Prove(root []byte, index int) ([]byte, [][]byte) {
+	b := tr.Store.Get(root)
 	if b == nil {
-		return nil, errProve
+		return nil, nil
 	}
 	var data [][]byte
-	err := t.encdec.Decode(&data, b)
+	err := tr.Encdec.Decode(&data, b)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 	if index > len(data)-1 {
-		return nil, errProve
+		return nil, nil
 	}
-	if !bytes.Equal(data[index], datum) {
-		return nil, errProve
-	}
+	datum := data[index]
+
 	var proof [][]byte
-	proof = append(proof, t.cypher.Hash(datum))
+	proof = append(proof, tr.Hasher.Hash(datum))
 	// hash the first layer
 	level := make([][]byte, 0, len(data))
 	for _, d := range data {
-		dh := t.cypher.Hash(d)
+		dh := tr.Hasher.Hash(d)
 		level = append(level, dh)
 	}
 	// build up the trie until we have a root
@@ -105,19 +111,47 @@ func (t *ArchiveTrie) Prove(root []byte, index int, datum []byte) ([][]byte, err
 		}
 		levelHash := make([][]byte, 0, len(level)/2)
 		for i := 0; i < len(level); i += 2 {
-			levelHash = append(levelHash, t.pairHash(level[i], level[i+1]))
+			levelHash = append(levelHash, tr.Hasher.Hash(level[i], level[i+1]))
 		}
 		level = levelHash
 		index = index / 2
 	}
 	// add the root to proof
 	proof = append(proof, level[0])
-	return proof, nil
+	return datum, proof
 }
 
-func (t *ArchiveTrie) pairHash(one, two []byte) []byte {
-	h := t.cypher.NewHash()
-	h.Write(one)
-	h.Write(two)
-	return h.Sum(nil)
+// Validate confirms whether the proof is valid for
+// the given Merkle root, index, and data
+func (tr *Archive) Validate(root []byte, index int, data []byte, proof [][]byte) bool {
+	// No such thing as zero length proofs
+	if proof == nil || len(proof) == 0 {
+		return false
+	}
+	// The last proof is the rooth hash of the data, so check it
+	if root == nil || !bytes.Equal(proof[len(proof)-1], root) {
+		return false
+	}
+	h := tr.Hasher.Hash(data)
+	// The first proof is the hash of the data, so check it
+	if !bytes.Equal(proof[0], h) {
+		return false
+	}
+	// Starting with the second member of the proof, up to
+	// but not including the root hash, hash h with its twin
+	for _, p := range proof[1 : len(proof)-1] {
+		if index&1 == 0 {
+			// for even indexes, twin is right twin
+			h = tr.Hasher.Hash(h, p)
+		} else {
+			// for odd indexes, twin is left twin
+			h = tr.Hasher.Hash(p, h)
+		}
+		index = index / 2
+	}
+	// check h against the root hash
+	if !bytes.Equal(h, proof[len(proof)-1]) {
+		return false
+	}
+	return true
 }
