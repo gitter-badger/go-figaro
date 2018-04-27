@@ -1,127 +1,174 @@
 package rlp
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
+	"reflect"
 )
+
+type rlpType int
 
 const (
-	str  = iota
-	list = iota
+	_ rlpType = iota
+	rlpString
+	rlpList
 )
+
+type rlpItem struct {
+	offset int
+	length int
+	typ    rlpType
+}
 
 var (
-	errData = errors.New("rlp: data does not conform to RLP encoding")
-	errNil  = errors.New("rlp: data is nil")
+	errInvalidData = errors.New("rlp: invalid data must be encoded rlp string or rlp list")
+	errInvalidDest = errors.New("rlp: destination for decoding is not valid for data")
 )
 
-// Package RLP implement the Recursive Length Prefix encoding protocol
-// as outlined here: https://github.com/ethereum/wiki/wiki/RLP
-
-// Decode decodes an RLP encoding []byte into a destination interface
-func Decode(dest interface{}, data []byte) error {
-	d, _, err := byteDecode(data)
+// Decode takes RLP data and attempts to ummarshal it into dest
+//
+// `dest` must be a pointer
+func Decode(dest interface{}, data []byte) (err error) {
+	// defer func() {
+	// 	if r := recover(); r != nil {
+	// 		err = errInvalidType
+	// 	}
+	// }()
+	// here we just decode the root, which must either be a list or a single item
+	off, l, typ, err := next(data)
 	if err != nil {
 		return err
 	}
-	return deserialize(dest, d)
-}
-
-type olt struct {
-	Offset int
-	Length int
-	Type   int
-}
-
-// byteDecode creates an arbitrarily nested lists of []byte from RLP encoding
-func byteDecode(data []byte) (i interface{}, o *olt, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = errData
+	// the root should be the entire data
+	if off+l != len(data) {
+		return errInvalidData
+	}
+	switch typ {
+	case rlpList:
+		ii, err := decodeList(substr(data, off, l))
+		if err != nil {
+			return err
 		}
-	}()
-	if len(data) == 0 {
-		return nil, nil, nil
+		// once we have built up a list, we can deserialize it
+		switch v := dest.(type) {
+		// because it is untyped, we can't deserialize the content
+		// of an []interface{} even though we could serialize it
+		//
+		// dest will be an (possibly arbitrarily nested) []interface{}
+		// containing raw []byte; caller really should implement
+		// rlp.Deserializer, but we support this just in case
+		case *[]interface{}:
+			*v = ii
+			return nil
+		case Deserializer:
+			return v.RLPDeserialize(ii)
+		}
+		// fallback to reflection for slice/struct
+		t := reflect.TypeOf(dest)
+		if t.Kind() != reflect.Ptr {
+			return errInvalidType
+		}
+		switch t.Elem().Kind() {
+		case reflect.Slice:
+			return deserializeSlice(dest, ii)
+		case reflect.Struct:
+			return deserializeStruct(dest, ii)
+		}
+		return errInvalidDest
+	case rlpString:
+		return deserializeString(dest, substr(data, off, l))
+	default:
+		return errWrongData
 	}
-	dolt, err := decodeLength(data)
-	if err != nil {
-		return nil, nil, err
-	}
-	if dolt.Type == str {
-		return substr(data, dolt.Offset, dolt.Length), dolt, nil
-	}
-	if dolt.Type == list {
-		ii := []interface{}{}
-		l := substr(data, dolt.Offset, dolt.Length)
-		off := 0
-		for {
-			i, o, err := byteDecode(l[off:])
-			if err != nil {
-				return nil, nil, err
-			}
-			if i != nil {
-				ii = append(ii, i)
-				off += o.Offset + o.Length
-				continue
-			}
+}
+
+func decodeList(data []byte) ([]interface{}, error) {
+	// scan the data substring and build up a []interface{}, recursing as necesssary
+	ii := make([]interface{}, 0)
+	prevOff := 0
+	prevL := 0
+
+	for {
+		off, l, typ, err := next(data[prevOff+prevL:])
+		if err != nil {
+			panic(err)
+		}
+		if typ == 0 {
 			break
 		}
-		return ii, dolt, nil
+
+		off += prevOff + prevL
+
+		switch typ {
+		case rlpList:
+			r, err := decodeList(substr(data, off, l))
+			if err != nil {
+				return nil, err
+			}
+			ii = append(ii, r)
+		case rlpString:
+			ii = append(ii, substr(data, off, l))
+		}
+		prevOff = off
+		prevL = l
 	}
-	return nil, nil, errData
+	return ii, nil
 }
 
-func decodeLength(data []byte) (o *olt, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = errData
-		}
-	}()
+func next(data []byte) (off, l int, typ rlpType, err error) {
 	length := len(data)
 	if length == 0 {
-		return nil, errNil
+		return 0, 0, 0, nil
 	}
 	prefix := int(data[0])
 	if prefix <= 0x7f {
-		return &olt{0, 1, str}, nil
+		return 0, 1, rlpString, nil
 	}
 	if prefix <= 0xb7 && length > prefix-0x80 {
 		strLen := prefix - 0x80
-		return &olt{1, strLen, str}, nil
+		return 1, strLen, rlpString, nil
 	}
 	if prefix <= 0xbf && length > prefix-0xb7 && length > prefix-0xb7+toInt(substr(data, 1, prefix-0xb7)) {
 		lenOfStrLen := prefix - 0xb7
 		strLen := toInt(substr(data, 1, lenOfStrLen))
-		return &olt{1 + lenOfStrLen, strLen, str}, nil
+		return 1 + lenOfStrLen, strLen, rlpString, nil
 	}
 	if prefix <= 0xf7 && length > prefix-0xc0 {
 		listLen := prefix - 0xc0
-		return &olt{1, listLen, list}, nil
+		return 1, listLen, rlpList, nil
 	}
 	if prefix <= 0xff && length > prefix-0xf7 && length > prefix-0xf7+toInt(substr(data, 1, prefix-0xf7)) {
 		lenOfListLen := prefix - 0xf7
 		listLen := toInt(substr(data, 1, lenOfListLen))
-		return &olt{1 + lenOfListLen, listLen, list}, nil
+		return 1 + lenOfListLen, listLen, rlpList, nil
 	}
-	return nil, errData
+	return 0, 0, 0, errInvalidData
+}
+
+func binaryToInt(b []byte) int {
+	i, n := binary.Varint(b)
+	if n <= 0 {
+		panic(errInvalidData)
+	}
+	return int(i)
+}
+
+func binaryToUint(b []byte) uint {
+	b = append(bytes.Repeat([]byte{0x00}, 8-len(b)), b...)
+	return uint(binary.BigEndian.Uint64(b))
+}
+
+func substr(b []byte, o, l int) []byte {
+	if o > len(b) {
+		return b[len(b):]
+	}
+	if o+l > len(b) {
+		return b[o:]
+	}
+	return b[o : o+l]
 }
 
 func toInt(b []byte) int {
-	l := len(b)
-	if l == 0 {
-		return 0
-	} else if l == 1 {
-		return int(b[0])
-	} else {
-		return int(b[len(b)-1]) + toInt(b[:len(b)-1])*256
-	}
-}
-
-func substr(b []byte, offset, length int) []byte {
-	if offset > len(b)-1 {
-		return []byte{}
-	}
-	if offset+length > len(b) {
-		return b[offset:]
-	}
-	return b[offset : offset+length]
+	return int(binary.BigEndian.Uint64(b))
 }

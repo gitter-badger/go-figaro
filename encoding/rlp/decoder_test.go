@@ -1,118 +1,59 @@
 package rlp
 
 import (
-	"bytes"
+	"errors"
 	"reflect"
 	"testing"
 )
 
-func Test_byteDecode(t *testing.T) {
-	type args struct {
-		data []byte
+func BenchmarkDecode_simple(b *testing.B) {
+	var h string
+	t := []byte{0x83, 'c', 'a', 't'}
+	for i := 0; i < b.N; i++ {
+		Decode(&h, t)
 	}
-	tests := []struct {
-		name    string
-		args    args
-		want    interface{}
-		wantErr bool
-	}{
-		{
-			"The string 'dog'",
-			args{[]byte{0x83, 'd', 'o', 'g'}},
-			[]byte("dog"),
-			false,
-		},
-		{
-			"The list [ 'cat', 'dog' ]",
-			args{[]byte{0xc8, 0x83, 'c', 'a', 't', 0x83, 'd', 'o', 'g'}},
-			[]interface{}{[]byte("cat"), []byte("dog")},
-			false,
-		},
-		{
-			"The list [ 'cat', 'dog' ] repeated a bunch",
-			args{append([]byte{0xf9, 0x04, 0x00}, bytes.Repeat([]byte{0x83, 'c', 'a', 't', 0x83, 'd', 'o', 'g'}, 128)...)},
-			func() []interface{} {
-				a := make([]interface{}, 128*2, 128*2)
-				for i := range a {
-					if i%2 == 0 {
-						a[i] = []byte("cat")
-					} else {
-						a[i] = []byte("dog")
-					}
-				}
-				return a
-			}(),
-			false,
-		},
-		{
-			"The empty string ('null')",
-			args{[]byte{0x80}},
-			[]byte(""),
-			false,
-		},
-		{
-			"The empty list",
-			args{[]byte{0xc0}},
-			[]interface{}{},
-			false,
-		},
-		{
-			"The integer 0",
-			args{[]byte{0x80}},
-			[]byte{},
-			false,
-		},
-		{
-			"The encoded integer 0",
-			args{[]byte{0x00}},
-			[]byte{0x00},
-			false,
-		},
-		{
-			"The encoded integer 15",
-			args{[]byte{0x0f}},
-			[]byte("\x0f"),
-			false,
-		},
-		{
-			"The encoded integer 1024",
-			args{[]byte{0x82, 0x04, 0x00}},
-			[]byte("\x04\x00"),
-			false,
-		},
-		{
-			"The set theoretical representation of three",
-			args{[]byte{0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0}},
-			[]interface{}{
-				[]interface{}{},
-				[]interface{}{[]interface{}{}},
-				[]interface{}{[]interface{}{}, []interface{}{[]interface{}{}}},
-			},
-			false,
-		},
-		{
-			"The string `Lorem ipsum dolor sit amet, consectetur adipisicing elit`",
-			args{[]byte{0xb8, 0x38, 'L', 'o', 'r', 'e', 'm', ' ', 'i', 'p', 's', 'u', 'm', ' ', 'd', 'o', 'l', 'o', 'r', ' ', 's', 'i', 't', ' ', 'a', 'm', 'e', 't', ',', ' ', 'c', 'o', 'n', 's', 'e', 'c', 't', 'e', 't', 'u', 'r', ' ', 'a', 'd', 'i', 'p', 'i', 's', 'i', 'c', 'i', 'n', 'g', ' ', 'e', 'l', 'i', 't'}},
-			[]byte("Lorem ipsum dolor sit amet, consectetur adipisicing elit"),
-			false,
-		},
+}
+
+func BenchmarkDecode_med(b *testing.B) {
+	h := []string{}
+	t := []byte{0xc8, 0x83, 'c', 'a', 't', 0x83, 'd', 'o', 'g'}
+	for i := 0; i < b.N; i++ {
+		Decode(&h, t)
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, _, err := byteDecode(tt.args.data)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("byteDecode() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("byteDecode() got = %v, want %v", got, tt.want)
-			}
-		})
+}
+
+type CustomDeserializer struct {
+	Name      string
+	Age       uint
+	Pointless string
+}
+
+func (c *CustomDeserializer) RLPDeserialize(data interface{}) error {
+	ii, ok := data.([]interface{})
+	if !ok {
+		return errors.New("this isn't my data")
+	}
+	if len(ii) != 3 {
+		return errors.New("this isn't my data")
+	}
+	deserializeString(&c.Name, ii[0].([]byte))
+	deserializeString(&c.Age, ii[1].([]byte))
+	deserializeString(&c.Pointless, ii[2].([]byte))
+	return nil
+}
+
+func BenchmarkDecode_complex_custom(b *testing.B) {
+	var h CustomDeserializer
+	t := []byte{0xd4, 0x83, 0x42, 0x6f, 0x62, 0x81, 0x96, 0x8d, 0x61, 0x6c, 0x6c, 0x20, 0x79, 0x6f, 0x75, 0x72, 0x20, 0x62, 0x61, 0x73, 0x65}
+	for i := 0; i < b.N; i++ {
+		Decode(&h, t)
 	}
 }
 
 func TestDecode(t *testing.T) {
-	h := []string{"cat", "dog"}
+	var h string
+	var h2 []string
+	var h3 CustomDeserializer
 	type args struct {
 		dest interface{}
 		data []byte
@@ -124,9 +65,21 @@ func TestDecode(t *testing.T) {
 		wantErr bool
 	}{
 		{
+			"A string",
+			args{&h, []byte{0x83, 'c', 'a', 't'}},
+			"cat",
+			false,
+		},
+		{
 			"The list [ 'cat', 'dog' ]",
-			args{&h, []byte{0xc8, 0x83, 'c', 'a', 't', 0x83, 'd', 'o', 'g'}},
+			args{&h2, []byte{0xc8, 0x83, 'c', 'a', 't', 0x83, 'd', 'o', 'g'}},
 			[]string{"cat", "dog"},
+			false,
+		},
+		{
+			"A custom deserializer",
+			args{&h3, []byte{0xd4, 0x83, 0x42, 0x6f, 0x62, 0x81, 0x96, 0x8d, 0x61, 0x6c, 0x6c, 0x20, 0x79, 0x6f, 0x75, 0x72, 0x20, 0x62, 0x61, 0x73, 0x65}},
+			CustomDeserializer{"Bob", 150, "all your base"},
 			false,
 		},
 	}

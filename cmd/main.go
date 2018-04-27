@@ -3,9 +3,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/figaro-tech/go-figaro/encoding/rlp"
-
 	"github.com/figaro-tech/go-figaro/db/memory"
+	"github.com/figaro-tech/go-figaro/encoding/rlp_old"
 
 	"github.com/figaro-tech/go-figaro/core"
 	"github.com/figaro-tech/go-figaro/crypto"
@@ -15,10 +14,10 @@ import (
 type encdec struct{}
 
 func (e *encdec) Encode(i interface{}) ([]byte, error) {
-	return rlp.Encode(i)
+	return rlp_old.Encode(i)
 }
 func (e *encdec) Decode(i interface{}, b []byte) error {
-	return rlp.Decode(i, b)
+	return rlp_old.Decode(i, b)
 }
 
 func main() {
