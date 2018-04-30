@@ -1,7 +1,8 @@
 # figaro-client
-Figaro Blockchain 
+Figaro Blockchain
 
 WIP Package Layout
+```
 cmd/
     boot/
         main.go
@@ -45,8 +46,9 @@ blockchain.go
 consensus.go
 crypto.go
 encoding.go
-network.go 
+network.go
 receipt.go
 store.go
 transaction.go
 trie.go
+```

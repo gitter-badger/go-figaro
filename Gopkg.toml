@@ -24,7 +24,6 @@
 #   go-tests = true
 #   unused-packages = true
 
-
 [prune]
   go-tests = true
   unused-packages = true
@@ -36,3 +35,39 @@
 [[constraint]]
   branch = "master"
   name = "github.com/syndtr/goleveldb"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/libp2p/go-libp2p-crypto"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/libp2p/go-libp2p-net"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/libp2p/go-libp2p-peer"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/libp2p/go-libp2p-peerstore"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/libp2p/go-libp2p-swarm"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/multiformats/go-multiaddr"
+
+[[override]]
+  branch = "master"
+  name = "github.com/multiformats/go-multihash"
+
+[[override]]
+  branch = "master"
+  name = "github.com/libp2p/go-libp2p-loggables"
+
+[[override]]
+  branch = "master"
+  name = "github.com/satori/go.uuid"

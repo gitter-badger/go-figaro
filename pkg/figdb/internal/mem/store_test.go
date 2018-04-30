@@ -37,7 +37,7 @@ func TestStore_Batch(t *testing.T) {
 	tests := []struct {
 		name string
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -47,16 +47,16 @@ func TestStore_Batch(t *testing.T) {
 	}
 }
 
-func TestStore_Save(t *testing.T) {
+func TestStore_Write(t *testing.T) {
 	tests := []struct {
 		name string
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := mem.NewStore()
-			s.Save()
+			s.Write()
 		})
 	}
 }
@@ -69,7 +69,7 @@ func TestStore_BatchUpdate(t *testing.T) {
 		name string
 		args args
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
