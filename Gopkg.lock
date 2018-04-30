@@ -3,13 +3,85 @@
 
 [[projects]]
   branch = "master"
-  name = "golang.org/x/crypto"
-  packages = ["sha3"]
-  revision = "2b6c08872f4b66da917bb4ce98df4f0307330f78"
+  name = "github.com/AndreasBriese/bbloom"
+  packages = ["."]
+  revision = "28f7e881ca57bc00e028f9ede9f0d9104cfeef5e"
+
+[[projects]]
+  name = "github.com/dgraph-io/badger"
+  packages = [
+    ".",
+    "options",
+    "protos",
+    "skl",
+    "table",
+    "y"
+  ]
+  revision = "69611218c7078be6de16f4ea13fb256e701b6b73"
+  version = "v1.3.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/dgryski/go-farm"
+  packages = ["."]
+  revision = "2de33835d10275975374b37b2dcfd22c9020a1f5"
+
+[[projects]]
+  name = "github.com/golang/protobuf"
+  packages = ["proto"]
+  revision = "925541529c1fa6821df4e44ce2723319eb2be768"
+  version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/golang/snappy"
+  packages = ["."]
+  revision = "553a641470496b2327abcac10b36396bd98e45c9"
+
+[[projects]]
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
+  version = "v0.8.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/syndtr/goleveldb"
+  packages = [
+    "leveldb",
+    "leveldb/cache",
+    "leveldb/comparer",
+    "leveldb/errors",
+    "leveldb/filter",
+    "leveldb/iterator",
+    "leveldb/journal",
+    "leveldb/memdb",
+    "leveldb/opt",
+    "leveldb/storage",
+    "leveldb/table",
+    "leveldb/util"
+  ]
+  revision = "714f901b98fdb3aa954b4193d8cbd64a28d80cad"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/net"
+  packages = [
+    "context",
+    "internal/timeseries",
+    "trace"
+  ]
+  revision = "5f9ae10d9af5b1c89ae6904293b14b064d4ada23"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/sys"
+  packages = ["unix"]
+  revision = "cbbc999da32df943dac6cd71eb3ee39e1d7838b9"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d200b70df7f17cbc36a662c0b19246abfe80bb43414e2d3a20f02b0c3fd575a6"
+  inputs-digest = "c02db038ceaacaa8ff640eea84157231a5fcc873951fa293f15bd269d57d2463"
   solver-name = "gps-cdcl"
   solver-version = 1

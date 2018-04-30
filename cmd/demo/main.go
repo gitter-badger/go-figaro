@@ -12,6 +12,10 @@ package main
 func main() {
 	// demoArchiveTrie()
 	// demoStateTrie()
+	// h := &sha256.Hasher{}
+	// e := &rlp.EncoderDecoder{}
+	// db := figdb.New("/tmp/figaro", h, e)
+
 }
 
 // func demoArchiveTrie() {
