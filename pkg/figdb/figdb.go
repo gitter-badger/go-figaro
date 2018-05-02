@@ -94,7 +94,7 @@ func New(dir string) FigDB {
 	} else if dbType == badgerDB {
 		store = badger.NewStore(dir)
 	} else {
-		log.Panicf("Unsupported DBType %d", dbType)
+		log.Panicf("Unsupported dbType %d", dbType)
 	}
 	state, archive := newTries(store)
 	return &db{store, state, archive}

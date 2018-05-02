@@ -15,7 +15,7 @@ func main() {
 	// h := &sha256.Hasher{}
 	// e := &rlp.EncoderDecoder{}
 	// db := figdb.New("/tmp/figaro", h, e)
-
+	// figdb.NewValidator(e)
 }
 
 // func demoArchiveTrie() {

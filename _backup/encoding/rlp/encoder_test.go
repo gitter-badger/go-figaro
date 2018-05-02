@@ -1,9 +1,20 @@
 package rlp
 
 import (
+	"bytes"
 	"reflect"
 	"testing"
 )
+
+func BenchmarkEncoder_EncodeNode(b *testing.B) {
+	t := make([][]byte, 0, 17)
+	for i := 0; i < 17; i++ {
+		t = append(t, bytes.Repeat([]byte{0xff}, 4))
+	}
+	for i := 0; i < b.N; i++ {
+		Encode(t)
+	}
+}
 
 func BenchmarkEncode_simple(b *testing.B) {
 	t := "hello my name is inigo montoya"

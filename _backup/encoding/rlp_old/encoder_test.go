@@ -1,6 +1,7 @@
 package rlp_old
 
 import (
+	"bytes"
 	"testing"
 )
 
@@ -120,5 +121,15 @@ func BenchmarkEncode_harder(b *testing.B) {
 	t := []interface{}{"cat", "dog", 77, []interface{}{"sheep", 666}}
 	for i := 0; i < b.N; i++ {
 		Encode(&t)
+	}
+}
+
+func BenchmarkEncoder_EncodeNode(b *testing.B) {
+	t := make([][]byte, 0, 17)
+	for i := 0; i < 17; i++ {
+		t = append(t, bytes.Repeat([]byte{0xff}, 32))
+	}
+	for i := 0; i < b.N; i++ {
+		Encode(t)
 	}
 }
