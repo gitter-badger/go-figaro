@@ -110,6 +110,15 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/hashicorp/golang-lru"
+  packages = [
+    ".",
+    "simplelru"
+  ]
+  revision = "0fb14efe8c47ae851c0034ed7a448854d3d34cf3"
+
+[[projects]]
+  branch = "master"
   name = "github.com/huin/goupnp"
   packages = [
     ".",
@@ -121,6 +130,22 @@
     "ssdp"
   ]
   revision = "1395d1447324cbea88d249fbfcfd70ea878fdfca"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/ipfs/go-cid"
+  packages = ["."]
+  revision = "078355866b1dda1658b5fdc5496ed7e25fdcf883"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/ipfs/go-datastore"
+  packages = [
+    ".",
+    "autobatch",
+    "query"
+  ]
+  revision = "2dc06227617da382dd1590e2534bbe6e5e492568"
 
 [[projects]]
   branch = "master"
@@ -140,6 +165,12 @@
   revision = "5e734014d0311263d09aa50625882643965cfb35"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/ipfs/go-todocounter"
+  packages = ["."]
+  revision = "1e832b829506383050e6eebd12e05ea41a451532"
+
+[[projects]]
   name = "github.com/jackpal/gateway"
   packages = ["."]
   revision = "3e333950771011fed13be63e62b9f473c5e0d9bf"
@@ -150,6 +181,12 @@
   packages = ["."]
   revision = "c9cfead9f2a36ddf3daa40ba269aa7f4bbba6b62"
   version = "v1.0.1"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/jbenet/go-context"
+  packages = ["io"]
+  revision = "d14ea06fba99483203c19d92cfcd13ebe73135f4"
 
 [[projects]]
   branch = "master"
@@ -176,6 +213,15 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/libp2p/go-floodsub"
+  packages = [
+    ".",
+    "pb"
+  ]
+  revision = "4e84ab6c81c4093552130a69fecfc5afe7c8dbf3"
+
+[[projects]]
+  branch = "master"
   name = "github.com/libp2p/go-flow-metrics"
   packages = ["."]
   revision = "3b3bcfcf78f2dc0e85be13ef3c3adc64cc5a9347"
@@ -184,6 +230,7 @@
   branch = "master"
   name = "github.com/libp2p/go-libp2p"
   packages = [
+    ".",
     "p2p/host/basic",
     "p2p/protocol/identify",
     "p2p/protocol/identify/pb"
@@ -240,6 +287,25 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/libp2p/go-libp2p-kad-dht"
+  packages = [
+    ".",
+    "pb",
+    "providers"
+  ]
+  revision = "fdb4db834bb35417b8dea5c7f0b9351f4a72cfa2"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/libp2p/go-libp2p-kbucket"
+  packages = [
+    ".",
+    "keyspace"
+  ]
+  revision = "598ae830061e727066151686ad7b5d4afde1b2ba"
+
+[[projects]]
+  branch = "master"
   name = "github.com/libp2p/go-libp2p-loggables"
   packages = ["."]
   revision = "3a7ad4dd32462b4d9c07a85021e0f5e1110debb2"
@@ -269,7 +335,10 @@
 [[projects]]
   branch = "master"
   name = "github.com/libp2p/go-libp2p-peer"
-  packages = ["."]
+  packages = [
+    ".",
+    "peerset"
+  ]
   revision = "aa0e03e559bde9d4749ad8e38595e15a6fe808fa"
 
 [[projects]]
@@ -277,7 +346,8 @@
   name = "github.com/libp2p/go-libp2p-peerstore"
   packages = [
     ".",
-    "addr"
+    "addr",
+    "queue"
   ]
   revision = "7ac092e7f77f5bda1cb6e4ef95efbe911e97db41"
 
@@ -286,6 +356,24 @@
   name = "github.com/libp2p/go-libp2p-protocol"
   packages = ["."]
   revision = "b29f3d97e3a2fb8b29c5d04290e6cb5c5018004b"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/libp2p/go-libp2p-record"
+  packages = [
+    ".",
+    "pb"
+  ]
+  revision = "3b0f03e00194d609d3bbd1fba08b46da88492d23"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/libp2p/go-libp2p-routing"
+  packages = [
+    ".",
+    "notifications"
+  ]
+  revision = "cfa74f61c9f68757650600344ada5480ac16b2b8"
 
 [[projects]]
   branch = "master"
@@ -413,6 +501,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/multiformats/go-multibase"
+  packages = ["."]
+  revision = "dfd5076869faca5aed2886dcba60b44a0d0e9c01"
+
+[[projects]]
+  branch = "master"
   name = "github.com/multiformats/go-multihash"
   packages = ["."]
   revision = "265e72146e710ff649c6982e3699d01d4e9a18bb"
@@ -472,15 +566,39 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/whyrusleeping/base32"
+  packages = ["."]
+  revision = "c30ac30633ccdabefe87eb12465113f06f1bab75"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/whyrusleeping/go-keyspace"
+  packages = ["."]
+  revision = "5b898ac5add1da7178a4a98e69cb7b9205c085ee"
+
+[[projects]]
+  branch = "master"
   name = "github.com/whyrusleeping/go-logging"
   packages = ["."]
   revision = "0457bb6b88fc1973573aaf6b5145d8d3ae972390"
 
 [[projects]]
   branch = "master"
+  name = "github.com/whyrusleeping/go-multiplex"
+  packages = ["."]
+  revision = "8b25da2b10bfcccbe3bf8aec22019cb50c8e2b97"
+
+[[projects]]
+  branch = "master"
   name = "github.com/whyrusleeping/go-notifier"
   packages = ["."]
   revision = "097c5d47330ff6a823f67e3515faa13566a62c6f"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/whyrusleeping/go-smux-multiplex"
+  packages = ["."]
+  revision = "5abcc6929ae3a6164818c9d85df242df1cbfcb61"
 
 [[projects]]
   branch = "master"
@@ -511,6 +629,12 @@
   name = "github.com/whyrusleeping/multiaddr-filter"
   packages = ["."]
   revision = "e903e4adabd70b78bc9293b6ee4f359afb3f9f59"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/whyrusleeping/timecache"
+  packages = ["."]
+  revision = "cfcb2f1abfee846c430233aef0b630a946e0a5a6"
 
 [[projects]]
   branch = "master"
@@ -577,6 +701,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "1fbae95b58d2dd9d77df3cb95136941fa6232fb8ac3f1bd9d9c48be6e630f399"
+  inputs-digest = "e8b8ce9192a7cdf20aa680f0ebe022a448f5b305784784d7409443a3e081f9ea"
   solver-name = "gps-cdcl"
   solver-version = 1

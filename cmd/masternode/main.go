@@ -1,64 +1,64 @@
 package main
 
 import (
-	"bufio"
-	"flag"
-	"fmt"
-	"os"
+	"context"
+	"log"
 	"time"
 
-	p2p "github.com/figaro-tech/figaro/pkg/figp2p"
+	"github.com/libp2p/go-floodsub"
+
+	"github.com/figaro-tech/figaro/pkg/figp2p"
 )
 
-type parameters struct {
-	port        int
-	peerAddress string
-}
+var rendezvousName = "figaro-demo-v0.0.1"
+var topicName = "figaro-message"
 
 func main() {
-	params := paramsFromFlags()
+	ctx := context.Background()
 
-	// First Node
-	masterNode := p2p.NewNode(params.port)
-	logMessages(masterNode)
+	// Create Boot Node
+	bootNode := newBootNode(ctx)
+	go bootNode.Listen(ctx)
 
-	// Listener Nodes
-	for i := 1; i <= 5; i++ {
-		listenerNode := p2p.NewNode(params.port + i)
-		listenerNode.AddPeer(masterNode.Address())
-		logMessages(listenerNode)
+	// Create Other Nodes
+	nodes := []*figp2p.Node{}
+	for i := 0; i < 5; i++ {
+		node := newNode(ctx, bootNode)
+		nodes = append(nodes, node)
+		go node.Listen(ctx)
 	}
 
-	// Listen for Input
-	sendUserInput(masterNode)
+	// Have them talk
+	time.Sleep(1 * time.Second)
+	bootNode.Broadcast(ctx, topicName, []byte("Hey everyone!"))
+	time.Sleep(1 * time.Second)
+	bootNode.Send(nodes[2].PeerID(), []byte("Yo, sup??"))
+	time.Sleep(3 * time.Second)
 }
 
-func paramsFromFlags() parameters {
-	port := flag.Int("port", 3000, "Listen Port Number")
-	peerAddress := flag.String("conn", "", "Connect directly to a peer")
-	flag.Parse()
-
-	return parameters{
-		peerAddress: *peerAddress,
-		port:        *port,
+func newBootNode(ctx context.Context) *figp2p.Node {
+	bootNode, err := figp2p.NewBootstrapNode(ctx, demoMuxer())
+	if err != nil {
+		log.Panic(err)
 	}
+	return bootNode
 }
 
-func logMessages(node *p2p.Node) {
-	node.Listen(func(message string) {
-		fmt.Println(fmt.Sprintf("Node %s received a message: %s", node.PeerID(), string(message)))
+func newNode(ctx context.Context, bootNode *figp2p.Node) *figp2p.Node {
+	newNode, err := figp2p.NewNode(ctx, bootNode.FullAddresses(), rendezvousName, demoMuxer())
+	if err != nil {
+		log.Panic(err)
+	}
+	return newNode
+}
+
+func demoMuxer() *figp2p.FanoutMux {
+	fanoutMux := figp2p.NewFanoutMux()
+	fanoutMux.Handle(topicName, func(node *figp2p.Node, msg *floodsub.Message) {
+		log.Println(node.ID(), "Got a message: ", string(msg.GetData()))
 	})
-}
-
-func sendUserInput(node *p2p.Node) {
-	stdReader := bufio.NewReader(os.Stdin)
-	for {
-		time.Sleep(2 * time.Second)
-		fmt.Print(fmt.Sprintf("Send from %s > ", node.PeerID()))
-		userInput, err := stdReader.ReadString('\n')
-		if err != nil {
-			panic(err)
-		}
-		node.Broadcast(userInput)
-	}
+	fanoutMux.HandleDirectMessage(func(node *figp2p.Node, msg *floodsub.Message) {
+		log.Println(node.ID(), "Got a direct message: ", string(msg.GetData()))
+	})
+	return fanoutMux
 }
