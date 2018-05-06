@@ -4,7 +4,7 @@ package figbuf
 // EncoderDecoder pairs an encoder and decoder for convenience
 type EncoderDecoder struct {
 	Encoder
-	// Decoder
+	Decoder
 }
 
 // Decode is a placeholder until the real thing is built

@@ -692,19 +692,14 @@ func (enc *Encoder) encodeRLPLength(buf []byte, l uint, off uint) []byte {
 	bl := binaryLen(l)
 	var b []byte
 	if bl+1 > 4 {
-		b := enc.buf8[:]
-		binary.BigEndian.PutUint64(b, uint64(l))
+		b = enc.Uint64ToBytes(uint64(l))
 	}
 	if bl+1 > 2 {
-		b := enc.buf4[:]
-		binary.BigEndian.PutUint32(b, uint32(l))
-
+		b = enc.Uint32ToBytes(uint32(l))
 	} else {
-		b := enc.buf2[:]
-		binary.BigEndian.PutUint16(b, uint16(l))
+		b = enc.Uint16ToBytes(uint16(l))
 	}
 	buf = append(buf, byte(bl+off+55))
-	buf = enc.EncodeNextUint(buf, l)
 	buf = append(buf, b...)
 	return buf
 }
