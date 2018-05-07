@@ -24,12 +24,6 @@ var (
 	ErrInvalidType = errors.New("figbuf: invalid type for encoding must be well-known type")
 )
 
-// DeterministicBinaryMarshaler should marshal itself using the encoding helpers,
-// allowing for deterministic encoding of complex types
-type DeterministicBinaryMarshaler interface {
-	MarshalDeterministicBinary(enc *Encoder) ([]byte, error)
-}
-
 // Encoder is an RLP encoder
 type Encoder struct {
 	buf   [4096]byte
@@ -56,15 +50,6 @@ func (enc *Encoder) Encode(d ...interface{}) ([]byte, error) {
 	return b, nil
 }
 
-// EncodeList RLP encodes a list of RLP encoding
-func (enc *Encoder) EncodeList(dd ...[]byte) []byte {
-	b := enc.buf[:0]
-	for _, d := range dd {
-		b = append(b, d...)
-	}
-	return enc.EncodeNextList(b, 0)
-}
-
 // EncodeBytes RLP encodes
 func (enc *Encoder) EncodeBytes(d []byte) []byte {
 	buf := enc.buf[:0]
@@ -81,6 +66,12 @@ func (enc *Encoder) EncodeBytesSlice(dd [][]byte) []byte {
 func (enc *Encoder) EncodeString(d string) []byte {
 	buf := enc.buf[:0]
 	return enc.EncodeNextString(buf, d)
+}
+
+// EncodeBool RLP encodes
+func (enc *Encoder) EncodeBool(d bool) []byte {
+	buf := enc.buf[:0]
+	return enc.EncodeNextBool(buf, d)
 }
 
 // EncodeInt RLP encodes
@@ -209,13 +200,6 @@ func (enc *Encoder) EncodeUint64Slice(dd []uint64) []byte {
 	return enc.EncodeNextUint64Slice(buf, dd)
 }
 
-// EncodeDeterministicBinaryMarshaler RLP encodes
-func (enc *Encoder) EncodeDeterministicBinaryMarshaler(d DeterministicBinaryMarshaler) ([]byte, error) {
-	// DeterministicBinaryMarshaler should be able to assume it has complete control,
-	// since we're at a root, no need to create a child
-	return d.(DeterministicBinaryMarshaler).MarshalDeterministicBinary(enc)
-}
-
 // EncodeBinaryMarshaler RLP encodes
 func (enc *Encoder) EncodeBinaryMarshaler(d encoding.BinaryMarshaler) ([]byte, error) {
 	buf := enc.buf[:]
@@ -266,6 +250,12 @@ func (enc *Encoder) EncodeNextBytesSlice(buf []byte, dd [][]byte) []byte {
 // EncodeNextString RLP encodes
 func (enc *Encoder) EncodeNextString(buf []byte, d string) []byte {
 	b := enc.StringToBytes(d)
+	return enc.encodeRLPString(buf, b)
+}
+
+// EncodeNextBool RLP encodes
+func (enc *Encoder) EncodeNextBool(buf []byte, d bool) []byte {
+	b := enc.BoolToBytes(d)
 	return enc.encodeRLPString(buf, b)
 }
 
@@ -424,19 +414,6 @@ func (enc *Encoder) EncodeNextUint64Slice(buf []byte, dd []uint64) []byte {
 	return enc.encodeRLPList(buf, bb)
 }
 
-// EncodeNextDeterministicBinaryMarshaler RLP encodes
-func (enc *Encoder) EncodeNextDeterministicBinaryMarshaler(buf []byte, d DeterministicBinaryMarshaler) ([]byte, error) {
-	// DeterministicBinaryMarshaler should be able to assume it has complete control,
-	// therefore, let's create a child encoder
-	childEnc := EncoderPool.Get().(*Encoder)
-	defer EncoderPool.Put(childEnc)
-	m, err := d.(DeterministicBinaryMarshaler).MarshalDeterministicBinary(childEnc)
-	if err != nil {
-		return nil, err
-	}
-	return append(buf, m...), nil
-}
-
 // EncodeNextBinaryMarshaler RLP encodes
 func (enc *Encoder) EncodeNextBinaryMarshaler(buf []byte, d encoding.BinaryMarshaler) ([]byte, error) {
 	m, err := d.MarshalBinary()
@@ -465,6 +442,14 @@ func (enc *Encoder) Copy(buf []byte) []byte {
 // StringToBytes converts
 func (enc *Encoder) StringToBytes(d string) []byte {
 	return []byte(d)
+}
+
+// BoolToBytes converts
+func (enc *Encoder) BoolToBytes(d bool) []byte {
+	if d == false {
+		return []byte{0x00}
+	}
+	return []byte{0x01}
 }
 
 // IntToBytes converts
@@ -579,6 +564,8 @@ func (enc *Encoder) encode(buf []byte, d interface{}) []byte {
 		return enc.EncodeNextBytesSlice(buf, d.([][]byte))
 	case string:
 		return enc.EncodeNextString(buf, d.(string))
+	case bool:
+		return enc.EncodeNextBool(buf, d.(bool))
 	case int:
 		return enc.EncodeNextInt(buf, d.(int))
 	case int8:
@@ -619,12 +606,6 @@ func (enc *Encoder) encode(buf []byte, d interface{}) []byte {
 		return enc.EncodeNextUint32Slice(buf, d.([]uint32))
 	case []uint64:
 		return enc.EncodeNextUint64Slice(buf, d.([]uint64))
-	case DeterministicBinaryMarshaler:
-		m, err := enc.EncodeNextDeterministicBinaryMarshaler(buf, d.(DeterministicBinaryMarshaler))
-		if err != nil {
-			panic(err)
-		}
-		return m
 	case encoding.BinaryMarshaler:
 		m, err := enc.EncodeNextBinaryMarshaler(buf, d.(encoding.BinaryMarshaler))
 		if err != nil {

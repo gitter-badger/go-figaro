@@ -22,7 +22,7 @@ func (db *DB) FetchAccount(root []byte, address [4]byte) *figaro.Account {
 	key := address[:]
 	b := db.State.Get(root, key)
 	acc := &figaro.Account{}
-	err := db.EncDec.Decode(acc, b)
+	_, err := db.EncDec.Decode(b, acc)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -34,7 +34,7 @@ func (db *DB) ProveAccount(root []byte, address [4]byte) (*figaro.Account, [][][
 	key := address[:]
 	b, proof := db.State.Prove(root, key)
 	acc := &figaro.Account{}
-	err := db.EncDec.Decode(acc, b)
+	_, err := db.EncDec.Decode(b, acc)
 	if err != nil {
 		log.Panic(err)
 	}
