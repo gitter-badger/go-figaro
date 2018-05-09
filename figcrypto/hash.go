@@ -1,10 +1,11 @@
-// Package figcrypto provides cryptographic hashing
+// Package figcrypto provides cryptographic functions
 package figcrypto
 
 import (
-	"crypto/sha256"
 	"hash"
 	"sync"
+
+	"golang.org/x/crypto/blake2b"
 )
 
 // HasherPool is a thread-safe pool of Hashers
@@ -21,8 +22,12 @@ type Hasher struct {
 
 // NewHasher returns a Hasher ready to use
 func NewHasher() *Hasher {
+	h, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
 	return &Hasher{
-		hash: sha256.New(),
+		hash: h,
 	}
 }
 
@@ -33,4 +38,15 @@ func (h *Hasher) Hash(b ...[]byte) []byte {
 		h.hash.Write(item)
 	}
 	return h.hash.Sum(nil)
+}
+
+// Hash returns a hash of 0 or more []byte
+func Hash(b ...[]byte) []byte {
+	if len(b) == 1 {
+		h := blake2b.Sum256(b[0])
+		return h[:]
+	}
+	h := HasherPool.Get().(*Hasher)
+	defer HasherPool.Put(h)
+	return h.Hash(b...)
 }
