@@ -1,4 +1,4 @@
-// Package trie implements the figaro.*Trie interfaces
+// Package trie implements merkle tries over the database
 package trie
 
 import (
@@ -13,7 +13,8 @@ import (
 // ErrIndexOutOfRange is a self-explanatory error
 var ErrIndexOutOfRange = errors.New("figdb archive: index is out of range for archive")
 
-// Archive impelements a pkg.ArchiveTrie
+// Archive impelements a binary merkle trie over the database
+// for archival of rarely changing data
 type Archive struct {
 	KeyStore types.KeyStore
 }

@@ -10,6 +10,7 @@ import (
 )
 
 func TestKeyStore_Set_Get_Delete(t *testing.T) {
+	defer helperCleanup()
 	type args struct {
 		key   []byte
 		value []byte
@@ -53,7 +54,6 @@ func TestKeyStore_Set_Get_Delete(t *testing.T) {
 			}
 		})
 	}
-	helperCleanup()
 }
 
 func helperCleanup() {

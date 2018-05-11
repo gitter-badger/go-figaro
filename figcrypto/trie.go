@@ -8,7 +8,7 @@ import (
 )
 
 // ErrIndexOutOfRange is a self-explanatory error
-var ErrIndexOutOfRange = errors.New("figdb archive: index is out of range for archive")
+var ErrIndexOutOfRange = errors.New("figcrypto trie: index is out of range for data")
 
 // BMTrieRoot constructs a root hash from an ordered list of data
 // based on the binary merkle algorithm
@@ -55,9 +55,9 @@ func BMTrieProof(data [][]byte, index int) ([][]byte, error) {
 	for i, d := range data {
 		trie[i] = h.Hash(d)
 	}
-	proof := make([][]byte, merkleLen(len(data)))
-	proof[0] = trie[index]
-	for k := 1; ; k++ {
+
+	proof := make([][]byte, int(math.Ceil(math.Log2(float64(len(data)))))+1)
+	for k := 0; ; k++ {
 		proof[k] = trie[index+1-(index&1*2)]
 		for i, j := 0, 0; i < len(trie); i, j = i+2, j+1 {
 			trie[j] = h.Hash(trie[i], trie[i+1])
@@ -83,10 +83,7 @@ func BMTrieValidate(root []byte, index int, data []byte, proof [][]byte) bool {
 	defer HasherPool.Put(h)
 
 	dh := h.Hash(data)
-	if !bytes.Equal(proof[0], dh) {
-		return false
-	}
-	for _, p := range proof[1 : len(proof)-1] {
+	for _, p := range proof[:len(proof)-1] {
 		if index&1 == 0 {
 			dh = h.Hash(dh, p)
 		} else {
@@ -98,8 +95,4 @@ func BMTrieValidate(root []byte, index int, data []byte, proof [][]byte) bool {
 		return false
 	}
 	return true
-}
-
-func merkleLen(l int) int {
-	return int(math.Ceil(math.Log2(float64(l)))) + 2
 }

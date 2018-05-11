@@ -17,7 +17,7 @@ var HasherPool = sync.Pool{
 
 // A Hasher hashes efficiently
 type Hasher struct {
-	hash hash.Hash
+	Hasher hash.Hash
 }
 
 // NewHasher returns a Hasher ready to use
@@ -27,17 +27,17 @@ func NewHasher() *Hasher {
 		panic(err)
 	}
 	return &Hasher{
-		hash: h,
+		Hasher: h,
 	}
 }
 
 // Hash returns a hash of 0 or more []byte
 func (h *Hasher) Hash(b ...[]byte) []byte {
-	h.hash.Reset()
+	h.Hasher.Reset()
 	for _, item := range b {
-		h.hash.Write(item)
+		h.Hasher.Write(item)
 	}
-	return h.hash.Sum(nil)
+	return h.Hasher.Sum(nil)
 }
 
 // Hash returns a hash of 0 or more []byte

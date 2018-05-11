@@ -1,12 +1,14 @@
 package mock
 
 import (
+	"fmt"
+
 	"github.com/figaro-tech/go-figaro/figdb/types"
 )
 
 // KeyStore sets up an in-memory key/value store
 type KeyStore struct {
-	DB      map[string][]byte
+	DB      map[string]string
 	batch   bool
 	pending types.KeyStoreUpdateBatch
 }
@@ -14,7 +16,7 @@ type KeyStore struct {
 // NewKeyStore makes a new KeyStore
 func NewKeyStore() *KeyStore {
 	ks := &KeyStore{
-		DB: make(map[string][]byte),
+		DB: make(map[string]string),
 	}
 	return ks
 }
@@ -22,20 +24,16 @@ func NewKeyStore() *KeyStore {
 // Get returns a trie value given a trie key
 func (ks *KeyStore) Get(key []byte) ([]byte, error) {
 	v := ks.DB[string(key)]
-	if v == nil {
+	if v == "" {
 		return nil, nil
 	}
-	c := make([]byte, len(v))
-	copy(c, v)
-	return c, nil
+	return []byte(v), nil
 }
 
 // Set updates a trie key with a trie value
 func (ks *KeyStore) Set(key []byte, value []byte) error {
 	if value != nil {
-		c := make([]byte, len(value))
-		copy(c, value)
-		ks.DB[string(key)] = c
+		ks.DB[string(key)] = string(value)
 	}
 	return nil
 }
@@ -69,4 +67,12 @@ func (ks *KeyStore) BatchUpdate(updates types.KeyStoreUpdateBatch) error {
 		}
 	}
 	return nil
+}
+
+func (ks *KeyStore) String() string {
+	s := ""
+	for k, v := range ks.DB {
+		s += fmt.Sprintf("%#x : %#x\n", k, v)
+	}
+	return s
 }
