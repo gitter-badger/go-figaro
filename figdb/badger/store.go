@@ -61,7 +61,10 @@ func (ks *KeyStore) Get(key []byte) ([]byte, error) {
 	defer ks.gclock.RUnlock()
 
 	if ks.batch {
-		return ks.getFromBatch(key)
+		v, err := ks.getFromBatch(key)
+		if err != badger.ErrKeyNotFound {
+			return v, err
+		}
 	}
 
 	var r []byte
@@ -244,7 +247,7 @@ func (ks *KeyStore) getFromBatch(key []byte) ([]byte, error) {
 
 	v := ks.batchDB[string(key)]
 	if v == "" {
-		return ks.Get(key)
+		return nil, badger.ErrKeyNotFound
 	}
 	return []byte(v), nil
 }
