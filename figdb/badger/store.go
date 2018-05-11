@@ -21,8 +21,6 @@ type KeyStore struct {
 	DB      *badger.DB
 	batchDB map[string]string
 	batch   bool
-	buf     [][]byte
-	bufat   int
 }
 
 // NewKeyStore returns a badger.KeyStore ready for use
@@ -34,12 +32,7 @@ func NewKeyStore(dir string) *KeyStore {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// buffers are used for safe batch operations
-	buf := make([][]byte, 1024)
-	for i := range buf {
-		buf[i] = make([]byte, 0, 4096)
-	}
-	return &KeyStore{DB: db, buf: buf}
+	return &KeyStore{DB: db}
 }
 
 // Close closes the DB and releases the file lock
@@ -165,7 +158,6 @@ func (ks *KeyStore) Write() error {
 	err := ks.BatchUpdate(pending)
 
 	ks.batch = false
-	ks.bufat = 0
 	return err
 }
 
@@ -255,24 +247,4 @@ func (ks *KeyStore) getFromBatch(key []byte) ([]byte, error) {
 		return ks.Get(key)
 	}
 	return []byte(v), nil
-}
-
-// Creates a new copy for safe batching
-func (ks *KeyStore) copy(src []byte) []byte {
-	// no lock is acquired because this is only called for batches
-	// and that would create a deadlock... BE CAREFUL
-	if src == nil {
-		return nil
-	}
-	if ks.bufat == len(ks.buf) {
-		ks.buf = append(ks.buf, make([]byte, 0, 4096))
-	}
-	buf := ks.buf[ks.bufat]
-	ks.bufat++
-	if len(buf) < len(src) {
-		buf = make([]byte, len(src))
-	}
-	copy(buf, src)
-	buf = buf[:len(src)]
-	return buf
 }
