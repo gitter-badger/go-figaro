@@ -10,7 +10,7 @@ type Account struct {
 	Balance     *big.Int
 	Stake       *big.Int
 	Code        []byte
-	StorageRoot [4]byte
+	StorageRoot []byte
 }
 
 // AccountDataService should implement a Merkle database mapped to an account

@@ -2,6 +2,7 @@
 package trie
 
 import (
+	"bytes"
 	"errors"
 
 	"github.com/figaro-tech/go-figaro/figbuf"
@@ -72,7 +73,7 @@ func (tr *State) Set(root, key, value []byte) ([]byte, error) {
 	defer tr.KeyStore.Write()
 
 	path := nibbles(key)
-	if root == nil {
+	if len(root) == 0 {
 		return tr.setNilRoot(h, enc, path, value)
 	}
 
@@ -95,7 +96,7 @@ func (tr *State) SetInBatch(root, key, value []byte) ([]byte, error) {
 	defer figcrypto.HasherPool.Put(h)
 
 	path := nibbles(key)
-	if root == nil {
+	if len(root) == 0 {
 		return tr.setNilRoot(h, enc, path, value)
 	}
 
@@ -107,7 +108,7 @@ func (tr *State) set(h *figcrypto.Hasher, enc *figbuf.Encoder, dec *figbuf.Decod
 	if err != nil {
 		return nil, err
 	}
-	if node == nil {
+	if len(node) == 0 {
 		return tr.setNilNode(h, enc, path, value)
 	}
 	if len(node) == 17 {
@@ -117,7 +118,7 @@ func (tr *State) set(h *figcrypto.Hasher, enc *figbuf.Encoder, dec *figbuf.Decod
 }
 
 func (tr *State) setNilRoot(h *figcrypto.Hasher, enc *figbuf.Encoder, path []uint8, value []byte) ([]byte, error) {
-	if value == nil {
+	if len(value) == 0 {
 		return nil, nil
 	}
 	return tr.setNode(h, enc, tr.getNewNode(compactEncode(path, true), value))
@@ -552,19 +553,118 @@ func (tr *State) setNode(h *figcrypto.Hasher, enc *figbuf.Encoder, node [][]byte
 
 // Get returns the value stored at a key under a given Merkle root
 func (tr *State) Get(root, key []byte) ([]byte, error) {
-	return nil, nil
+	dec := figbuf.DecoderPool.Get().(*figbuf.Decoder)
+	defer figbuf.DecoderPool.Put(dec)
+
+	if len(root) == 0 {
+		return nil, nil
+	}
+	if len(key) == 0 {
+		return nil, nil
+	}
+
+	path := nibbles(key)
+	return tr.get(dec, root, path)
+}
+
+func (tr *State) get(dec *figbuf.Decoder, root []byte, path []uint8) ([]byte, error) {
+	node, err := tr.getNode(dec, root)
+	if err != nil {
+		return nil, err
+	}
+	if len(node) == 0 {
+		return nil, nil
+	}
+	if len(node) == 17 {
+		if len(path) == 0 {
+			return node[16], nil
+		}
+		return tr.get(dec, node[path[0]], path[1:])
+	}
+	short, term, err := compactDecode(node[0])
+	if err != nil {
+		return nil, err
+	}
+	if term {
+		if pathEqual(short, path) {
+			return node[1], nil
+		}
+		return nil, nil
+	}
+	_, rs, rp := overlap(short, path)
+	if len(rs) != 0 {
+		return nil, nil
+	}
+	return tr.get(dec, node[1], rp)
 }
 
 // GetAndProve returns the value stored at a key under a given Merkle root,
 // along with a Merkle proof that the value resides at key under root
 func (tr *State) GetAndProve(root, key []byte) ([]byte, [][][]byte, error) {
-	return nil, nil, nil
+	dec := figbuf.DecoderPool.Get().(*figbuf.Decoder)
+	defer figbuf.DecoderPool.Put(dec)
+
+	if len(root) == 0 {
+		return nil, nil, nil
+	}
+	if len(key) == 0 {
+		return nil, nil, nil
+	}
+
+	path := nibbles(key)
+	return tr.getAndProve(dec, root, path)
+}
+
+func (tr *State) getAndProve(dec *figbuf.Decoder, root []byte, path []uint8) ([]byte, [][][]byte, error) {
+	var proof [][][]byte
+	node, err := tr.getNode(dec, root)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(node) == 0 {
+		return nil, nil, nil
+	}
+	if len(node) == 17 {
+		if len(path) == 0 {
+			proof = append(proof, node)
+			return node[16], proof, nil
+		}
+		r, p, err := tr.getAndProve(dec, node[path[0]], path[1:])
+		if err != nil {
+			return nil, nil, err
+		}
+		proof = append(proof, node)
+		proof = append(proof, p...)
+		return r, proof, nil
+	}
+	short, term, err := compactDecode(node[0])
+	if err != nil {
+		return nil, nil, err
+	}
+	if term {
+		if pathEqual(short, path) {
+			proof = append(proof, node)
+			return node[1], proof, nil
+		}
+		return nil, nil, nil
+	}
+	_, rs, rp := overlap(short, path)
+	if len(rs) != 0 {
+		return nil, nil, nil
+	}
+	r, p, err := tr.getAndProve(dec, node[1], rp)
+	if err != nil {
+		return nil, nil, err
+	}
+	proof = append(proof, node)
+	proof = append(proof, p...)
+	return r, proof, nil
 }
 
 func (tr *State) getNode(dec *figbuf.Decoder, k []byte) ([][]byte, error) {
 	var v []byte
 	var err error
-	if k == nil || len(k) == 0 {
+	if len(k) == 0 {
 		return nil, nil
 	}
 	if len(k) < 32 {
@@ -578,6 +678,75 @@ func (tr *State) getNode(dec *figbuf.Decoder, k []byte) ([][]byte, error) {
 	var node [][]byte
 	node, _, err = dec.DecodeBytesSlice(v)
 	return node, err
+}
+
+// Validate confirms whether a merkle patricia proof is valid for a given root, key, and value
+func Validate(root []byte, key, value []byte, proof [][][]byte) bool {
+	enc := figbuf.EncoderPool.Get().(*figbuf.Encoder)
+	defer figbuf.EncoderPool.Put(enc)
+
+	h := figcrypto.HasherPool.Get().(*figcrypto.Hasher)
+	defer figcrypto.HasherPool.Put(h)
+
+	path := nibbles(key)
+
+	nh, ok := validate(h, enc, path, value, proof)
+	if ok && bytes.Equal(root, nh) {
+		return true
+	}
+	return false
+}
+
+func validate(h *figcrypto.Hasher, enc *figbuf.Encoder, path []uint8, value []byte, proof [][][]byte) ([]byte, bool) {
+	if len(proof) == 0 {
+		return nil, false
+	}
+	node := proof[0]
+	if len(node) == 17 {
+		if len(path) == 0 {
+			if bytes.Equal(value, node[16]) {
+				return hashNode(h, enc, node), true
+			}
+			return nil, false
+		}
+		nh, ok := validate(h, enc, path[1:], value, proof[1:])
+		if ok && bytes.Equal(nh, node[path[0]]) {
+			return hashNode(h, enc, node), true
+		}
+		return nil, false
+	}
+	short, term, err := compactDecode(node[0])
+	if err != nil {
+		return nil, false
+	}
+	if term {
+		if pathEqual(short, path) {
+			if bytes.Equal(value, node[1]) {
+				return hashNode(h, enc, node), true
+			}
+		}
+		return nil, false
+	}
+	_, rs, rp := overlap(short, path)
+	if len(rs) != 0 {
+		return nil, false
+	}
+	nh, ok := validate(h, enc, rp, value, proof[1:])
+	if ok && bytes.Equal(nh, node[1]) {
+		return hashNode(h, enc, node), true
+	}
+	return nil, false
+}
+
+func hashNode(h *figcrypto.Hasher, enc *figbuf.Encoder, node [][]byte) []byte {
+	if nullNode(node) {
+		return nil
+	}
+	v := enc.EncodeBytesSlice(node)
+	if len(v) < 32 {
+		return enc.Copy(v)
+	}
+	return h.Hash(node...)
 }
 
 // Helper Functions
@@ -618,7 +787,7 @@ func compactDecode(bytes []byte) ([]uint8, bool, error) {
 
 func nullNode(bb [][]byte) bool {
 	if len(bb) == 2 {
-		return bb[1] == nil
+		return len(bb[1]) == 0
 	}
 	for _, b := range bb {
 		if len(b) > 0 {
@@ -651,6 +820,18 @@ func overlap(short, path []uint8) (overlap []uint8, sremainder []uint8, premaind
 		overlap = append(overlap, v)
 	}
 	return overlap, short[len(overlap):], path[len(overlap):]
+}
+
+func pathEqual(a, b []uint8) bool {
+	for i, v := range a {
+		if i > len(b)-1 {
+			return false
+		}
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func nibbles(bytes []byte) []uint8 {

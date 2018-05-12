@@ -2,40 +2,32 @@
 package figdb
 
 import (
-	"github.com/figaro-tech/go-figaro/figbuf"
 	"github.com/figaro-tech/go-figaro/figdb"
+	"github.com/figaro-tech/go-figaro/figdb/trie"
 )
 
 // DB is a domain Merkle database
 type DB struct {
-	DB      figdb.FigDB
-	State   figdb.StateTrie
-	Archive figdb.ArchiveTrie
-	EncDec  figbuf.EncoderDecoder
+	DB      *figdb.FigDB
+	Archive *trie.Archive
+	State   *trie.State
 }
 
-// Validator is a domain Merkle validator
-type Validator struct {
-	State   figdb.StateValidator
-	Archive figdb.ArchiveValidator
-	EncDec  figbuf.EncoderDecoder
+// MemDB is a domain Merkle database, in-memory only
+type MemDB struct {
+	DB      *figdb.FigMemDB
+	Archive *trie.Archive
+	State   *trie.State
 }
 
 // New returns a FigDB backed by a high-performance disk database
-func New(dir string, encdec figbuf.EncoderDecoder) *DB {
+func New(dir string) *DB {
 	db := figdb.New(dir)
-	return &DB{db, db.State(), db.Archive(), encdec}
+	return &DB{db, db.Archive, db.State}
 }
 
-// NewMemDB returns a FigDB backed by a high-performance memory database
-func NewMemDB(encdec figbuf.EncoderDecoder) *DB {
-	db := figdb.NewMemDB()
-	return &DB{db, db.State(), db.Archive(), encdec}
-}
-
-// NewValidator returns a Merkle validator ready to use
-func NewValidator(encdec figbuf.EncoderDecoder) *Validator {
-	sv := figdb.NewStateValidator()
-	av := figdb.NewArchiveValidator()
-	return &Validator{sv, av, encdec}
+// NewMem returns a FigDB backed by a high-performance memory database
+func NewMem() *MemDB {
+	db := figdb.NewMem()
+	return &MemDB{db, db.Archive, db.State}
 }
