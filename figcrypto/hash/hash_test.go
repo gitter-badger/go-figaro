@@ -1,30 +1,30 @@
-package figcrypto_test
+package hash_test
 
 import (
 	"fmt"
 	"testing"
 
-	"github.com/figaro-tech/go-figaro/figcrypto"
+	"github.com/figaro-tech/go-figaro/figcrypto/hash"
 )
 
-func ExampleHash() {
+func ExampleHash256() {
 	archive := []byte{0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa}
-	h := figcrypto.Hash(archive)
+	h := hash.Hash256(archive)
 	fmt.Printf("%#x\n", h)
 	// Output: 0xcfae1696d66549c090e4d6ba1266c7b0aa7bb80747c642d8607ecb5d2dec80a5
 }
 
-func BenchmarkHash(b *testing.B) {
+func BenchmarkHash256(b *testing.B) {
 	archive := []byte{0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa}
 	for i := 0; i < b.N; i++ {
-		figcrypto.Hash(archive)
+		hash.Hash256(archive)
 	}
 }
 
-func BenchmarkHasher_Hash(b *testing.B) {
+func BenchmarkHasher_Hash256(b *testing.B) {
 	archive := []byte{0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa}
-	hasher := figcrypto.NewHasher()
+	hasher := hash.NewHasher()
 	for i := 0; i < b.N; i++ {
-		hasher.Hash(archive)
+		hasher.Hash256(archive)
 	}
 }

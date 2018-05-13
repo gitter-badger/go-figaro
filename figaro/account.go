@@ -6,7 +6,7 @@ import "math/big"
 // Account represents an account in Figaro
 type Account struct {
 	Nonce       *big.Int
-	Address     [4]byte
+	Address     []byte
 	Balance     *big.Int
 	Stake       *big.Int
 	Code        []byte

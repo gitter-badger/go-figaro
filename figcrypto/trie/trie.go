@@ -1,31 +1,33 @@
-// Package figcrypto provides cryptographic functions
-package figcrypto
+// Package trie provides cryptographic functions
+package trie
 
 import (
 	"bytes"
 	"errors"
 	"math"
+
+	"github.com/figaro-tech/go-figaro/figcrypto/hash"
 )
 
 // ErrIndexOutOfRange is a self-explanatory error
 var ErrIndexOutOfRange = errors.New("figcrypto trie: index is out of range for data")
 
-// BMTrieRoot constructs a root hash from an ordered list of data
+// Trie constructs a root hash from an ordered list of data
 // based on the binary merkle algorithm
-func BMTrieRoot(data [][]byte) []byte {
-	h := HasherPool.Get().(*Hasher)
-	defer HasherPool.Put(h)
+func Trie(data [][]byte) []byte {
+	h := hash.HasherPool.Get().(*hash.Hasher)
+	defer hash.HasherPool.Put(h)
 
 	if len(data)&1 == 1 {
 		data = append(data, nil)
 	}
 	trie := make([][]byte, len(data))
 	for i, d := range data {
-		trie[i] = h.Hash(d)
+		trie[i] = h.Hash256(d)
 	}
 	for {
 		for i, j := 0, 0; i < len(trie); i, j = i+2, j+1 {
-			trie[j] = h.Hash(trie[i], trie[i+1])
+			trie[j] = h.Hash256(trie[i], trie[i+1])
 		}
 		l := len(trie) / 2
 		if l == 1 {
@@ -40,10 +42,10 @@ func BMTrieRoot(data [][]byte) []byte {
 	return trie[0]
 }
 
-// BMTrieProof construct a merkle proof of the datum in data at index
-func BMTrieProof(data [][]byte, index int) ([][]byte, error) {
-	h := HasherPool.Get().(*Hasher)
-	defer HasherPool.Put(h)
+// Proof construct a merkle proof of the datum in data at index
+func Proof(data [][]byte, index int) ([][]byte, error) {
+	h := hash.HasherPool.Get().(*hash.Hasher)
+	defer hash.HasherPool.Put(h)
 
 	if index > len(data)-1 {
 		return nil, ErrIndexOutOfRange
@@ -53,14 +55,14 @@ func BMTrieProof(data [][]byte, index int) ([][]byte, error) {
 	}
 	trie := make([][]byte, len(data))
 	for i, d := range data {
-		trie[i] = h.Hash(d)
+		trie[i] = h.Hash256(d)
 	}
 
 	proof := make([][]byte, int(math.Ceil(math.Log2(float64(len(data)))))+1)
 	for k := 0; ; k++ {
 		proof[k] = trie[index+1-(index&1*2)]
 		for i, j := 0, 0; i < len(trie); i, j = i+2, j+1 {
-			trie[j] = h.Hash(trie[i], trie[i+1])
+			trie[j] = h.Hash256(trie[i], trie[i+1])
 		}
 		l := len(trie) / 2
 		if l == 1 {
@@ -77,17 +79,17 @@ func BMTrieProof(data [][]byte, index int) ([][]byte, error) {
 	return proof, nil
 }
 
-// BMTrieValidate validates the proof that data exists in root at index
-func BMTrieValidate(root []byte, index int, data []byte, proof [][]byte) bool {
-	h := HasherPool.Get().(*Hasher)
-	defer HasherPool.Put(h)
+// Validate validates the proof that data exists in root at index
+func Validate(root []byte, index int, data []byte, proof [][]byte) bool {
+	h := hash.HasherPool.Get().(*hash.Hasher)
+	defer hash.HasherPool.Put(h)
 
-	dh := h.Hash(data)
+	dh := h.Hash256(data)
 	for _, p := range proof[:len(proof)-1] {
 		if index&1 == 0 {
-			dh = h.Hash(dh, p)
+			dh = h.Hash256(dh, p)
 		} else {
-			dh = h.Hash(p, dh)
+			dh = h.Hash256(p, dh)
 		}
 		index = index / 2
 	}

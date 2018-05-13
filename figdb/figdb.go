@@ -7,8 +7,8 @@ import (
 	"github.com/figaro-tech/go-figaro/figdb/trie"
 )
 
-// MPTrieValidate validates a proof for a given root, key, and value
-func MPTrieValidate(root, key, value []byte, proof [][][]byte) bool {
+// StateValidate validates a proof for a given root, key, and value
+func StateValidate(root, key, value []byte, proof [][][]byte) bool {
 	return trie.Validate(root, key, value, proof)
 }
 

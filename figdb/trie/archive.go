@@ -4,7 +4,7 @@ package trie
 import (
 	"errors"
 
-	"github.com/figaro-tech/go-figaro/figcrypto"
+	"github.com/figaro-tech/go-figaro/figcrypto/trie"
 
 	"github.com/figaro-tech/go-figaro/figbuf"
 	"github.com/figaro-tech/go-figaro/figdb/types"
@@ -25,7 +25,7 @@ func (tr *Archive) Save(data [][]byte) ([]byte, error) {
 	enc := figbuf.EncoderPool.Get().(*figbuf.Encoder)
 	defer figbuf.EncoderPool.Put(enc)
 
-	root := figcrypto.BMTrieRoot(data)
+	root := trie.Trie(data)
 	value := enc.EncodeBytesSlice(data)
 	err := tr.KeyStore.Set(root, value)
 	if err != nil {
@@ -95,7 +95,7 @@ func (tr *Archive) GetAndProve(root []byte, index int) ([]byte, [][]byte, error)
 	if index > len(data)-1 {
 		return nil, nil, ErrIndexOutOfRange
 	}
-	proof, err := figcrypto.BMTrieProof(data, index)
+	proof, err := trie.Proof(data, index)
 	if err != nil {
 		return nil, nil, err
 	}

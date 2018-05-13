@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/figaro-tech/go-figaro/figdb/mock"
-
 	"github.com/figaro-tech/go-figaro/figdb/trie"
 )
 
