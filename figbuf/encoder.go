@@ -201,15 +201,37 @@ func (enc *Encoder) EncodeUint64Slice(dd []uint64) []byte {
 }
 
 // EncodeBinaryMarshaler RLP encodes
-func (enc *Encoder) EncodeBinaryMarshaler(d encoding.BinaryMarshaler) ([]byte, error) {
-	buf := enc.buf[:]
-	return enc.EncodeNextBinaryMarshaler(buf, d)
+func (enc *Encoder) EncodeBinaryMarshaler(d encoding.BinaryMarshaler) (buf []byte, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if re, ok := r.(error); ok {
+				buf = nil
+				err = re
+			} else {
+				log.Panic(r)
+			}
+		}
+	}()
+	buf = enc.buf[:]
+	buf = enc.EncodeNextBinaryMarshaler(buf, d)
+	return
 }
 
 // EncodeTextMarshaler RLP encodes
-func (enc *Encoder) EncodeTextMarshaler(d encoding.TextMarshaler) ([]byte, error) {
-	buf := enc.buf[:]
-	return enc.EncodeNextTextMarshaler(buf, d)
+func (enc *Encoder) EncodeTextMarshaler(d encoding.TextMarshaler) (buf []byte, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if re, ok := r.(error); ok {
+				buf = nil
+				err = re
+			} else {
+				log.Panic(r)
+			}
+		}
+	}()
+	buf = enc.buf[:]
+	buf = enc.EncodeNextTextMarshaler(buf, d)
+	return
 }
 
 // EncodeNext RLP encodes
@@ -233,8 +255,8 @@ func (enc *Encoder) EncodeNext(buf []byte, d ...interface{}) (b []byte, err erro
 }
 
 // EncodeNextList RLP encodes
-func (enc *Encoder) EncodeNextList(buf []byte, idx uint) []byte {
-	return enc.encodeListHelper(buf, idx)
+func (enc *Encoder) EncodeNextList(buf []byte, builder func([]byte) []byte) []byte {
+	return enc.encodeListHelper(buf, builder)
 }
 
 // EncodeNextBytes RLP encodes
@@ -415,21 +437,21 @@ func (enc *Encoder) EncodeNextUint64Slice(buf []byte, dd []uint64) []byte {
 }
 
 // EncodeNextBinaryMarshaler RLP encodes
-func (enc *Encoder) EncodeNextBinaryMarshaler(buf []byte, d encoding.BinaryMarshaler) ([]byte, error) {
+func (enc *Encoder) EncodeNextBinaryMarshaler(buf []byte, d encoding.BinaryMarshaler) []byte {
 	m, err := d.MarshalBinary()
 	if err != nil {
-		return nil, err
+		log.Panic(err)
 	}
-	return enc.EncodeNextBytes(buf, m), nil
+	return enc.EncodeNextBytes(buf, m)
 }
 
 // EncodeNextTextMarshaler RLP encodes
-func (enc *Encoder) EncodeNextTextMarshaler(buf []byte, d encoding.TextMarshaler) ([]byte, error) {
+func (enc *Encoder) EncodeNextTextMarshaler(buf []byte, d encoding.TextMarshaler) []byte {
 	m, err := d.MarshalText()
 	if err != nil {
-		return nil, err
+		log.Panic(err)
 	}
-	return enc.EncodeNextBytes(buf, m), nil
+	return enc.EncodeNextBytes(buf, m)
 }
 
 // Copy creates an independent copy of the buffer
@@ -607,27 +629,20 @@ func (enc *Encoder) encode(buf []byte, d interface{}) []byte {
 	case []uint64:
 		return enc.EncodeNextUint64Slice(buf, d.([]uint64))
 	case encoding.BinaryMarshaler:
-		m, err := enc.EncodeNextBinaryMarshaler(buf, d.(encoding.BinaryMarshaler))
-		if err != nil {
-			panic(err)
-		}
-		return m
+		return enc.EncodeNextBinaryMarshaler(buf, d.(encoding.BinaryMarshaler))
 	case encoding.TextMarshaler:
-		m, err := enc.EncodeNextTextMarshaler(buf, d.(encoding.TextMarshaler))
-		if err != nil {
-			panic(err)
-		}
-		return m
+		return enc.EncodeNextTextMarshaler(buf, d.(encoding.TextMarshaler))
 	}
 	panic(ErrInvalidType)
 }
 
 func (enc *Encoder) encodeList(buf []byte, dd []interface{}) []byte {
-	idx := uint(len(buf))
-	for _, d := range dd {
-		buf = enc.encode(buf, d)
-	}
-	return enc.encodeListHelper(buf, idx)
+	return enc.encodeListHelper(buf, func(buf []byte) []byte {
+		for _, d := range dd {
+			buf = enc.encode(buf, d)
+		}
+		return buf
+	})
 }
 
 func (enc *Encoder) encodeRLPString(buf []byte, s []byte) []byte {
@@ -641,14 +656,17 @@ func (enc *Encoder) encodeRLPString(buf []byte, s []byte) []byte {
 }
 
 func (enc *Encoder) encodeRLPList(buf []byte, dd [][]byte) []byte {
-	idx := uint(len(buf))
-	for _, d := range dd {
-		buf = enc.encodeRLPString(buf, d)
-	}
-	return enc.encodeListHelper(buf, idx)
+	return enc.encodeListHelper(buf, func(buf []byte) []byte {
+		for _, d := range dd {
+			buf = enc.encodeRLPString(buf, d)
+		}
+		return buf
+	})
 }
 
-func (enc *Encoder) encodeListHelper(buf []byte, idx uint) []byte {
+func (enc *Encoder) encodeListHelper(buf []byte, builder func([]byte) []byte) []byte {
+	idx := uint(len(buf))
+	buf = builder(buf)
 	l := uint(len(buf)) - idx
 	var pad uint
 	if l < 56 {

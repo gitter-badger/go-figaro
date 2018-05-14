@@ -66,18 +66,15 @@ func (tr *State) Set(root, key, value []byte) ([]byte, error) {
 	dec := figbuf.DecoderPool.Get().(*figbuf.Decoder)
 	defer figbuf.DecoderPool.Put(dec)
 
-	h := hash.HasherPool.Get().(*hash.Hasher)
-	defer hash.HasherPool.Put(h)
-
 	tr.KeyStore.Batch()
 	defer tr.KeyStore.Write()
 
 	path := nibbles(key)
 	if len(root) == 0 {
-		return tr.setNilRoot(h, enc, path, value)
+		return tr.setNilRoot(enc, path, value)
 	}
 
-	return tr.set(h, enc, dec, root, path, value)
+	return tr.set(enc, dec, root, path, value)
 }
 
 // SetInBatch updates a key/value pair from a given Merkle root,
@@ -92,43 +89,40 @@ func (tr *State) SetInBatch(root, key, value []byte) ([]byte, error) {
 	dec := figbuf.DecoderPool.Get().(*figbuf.Decoder)
 	defer figbuf.DecoderPool.Put(dec)
 
-	h := hash.HasherPool.Get().(*hash.Hasher)
-	defer hash.HasherPool.Put(h)
-
 	path := nibbles(key)
 	if len(root) == 0 {
-		return tr.setNilRoot(h, enc, path, value)
+		return tr.setNilRoot(enc, path, value)
 	}
 
-	return tr.set(h, enc, dec, root, path, value)
+	return tr.set(enc, dec, root, path, value)
 }
 
-func (tr *State) set(h *hash.Hasher, enc *figbuf.Encoder, dec *figbuf.Decoder, root []byte, path []uint8, value []byte) ([]byte, error) {
+func (tr *State) set(enc *figbuf.Encoder, dec *figbuf.Decoder, root []byte, path []uint8, value []byte) ([]byte, error) {
 	node, err := tr.getNode(dec, root)
 	if err != nil {
 		return nil, err
 	}
 	if len(node) == 0 {
-		return tr.setNilNode(h, enc, path, value)
+		return tr.setNilNode(enc, path, value)
 	}
 	if len(node) == 17 {
-		return tr.setBranchNode(h, enc, dec, node, path, value)
+		return tr.setBranchNode(enc, dec, node, path, value)
 	}
-	return tr.setLeafOrExtension(h, enc, dec, node, path, value)
+	return tr.setLeafOrExtension(enc, dec, node, path, value)
 }
 
-func (tr *State) setNilRoot(h *hash.Hasher, enc *figbuf.Encoder, path []uint8, value []byte) ([]byte, error) {
+func (tr *State) setNilRoot(enc *figbuf.Encoder, path []uint8, value []byte) ([]byte, error) {
 	if len(value) == 0 {
 		return nil, nil
 	}
-	return tr.setNode(h, enc, tr.getNewNode(compactEncode(path, true), value))
+	return tr.setNode(enc, tr.getNewNode(compactEncode(path, true), value))
 }
 
-func (tr *State) setNilNode(h *hash.Hasher, enc *figbuf.Encoder, path []uint8, value []byte) ([]byte, error) {
-	return tr.setNode(h, enc, tr.getNewNode(compactEncode(path, true), value))
+func (tr *State) setNilNode(enc *figbuf.Encoder, path []uint8, value []byte) ([]byte, error) {
+	return tr.setNode(enc, tr.getNewNode(compactEncode(path, true), value))
 }
 
-func (tr *State) setBranchNode(h *hash.Hasher, enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, path []uint8, value []byte) ([]byte, error) {
+func (tr *State) setBranchNode(enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, path []uint8, value []byte) ([]byte, error) {
 	/*
 		<branch
 		<1234> -> value
@@ -152,71 +146,71 @@ func (tr *State) setBranchNode(h *hash.Hasher, enc *figbuf.Encoder, dec *figbuf.
 	if len(path) == 0 {
 		node[16] = value
 	} else {
-		k, err := tr.set(h, enc, dec, node[path[0]], path[1:], value)
+		k, err := tr.set(enc, dec, node[path[0]], path[1:], value)
 		if err != nil {
 			return nil, err
 		}
 		node[path[0]] = k
 	}
 	if i, ok := singleNode(node); ok {
-		return tr.setSingleBranchNode(h, enc, dec, node, nil, i)
+		return tr.setSingleBranchNode(enc, dec, node, nil, i)
 	}
-	return tr.setNode(h, enc, node)
+	return tr.setNode(enc, node)
 }
 
-func (tr *State) setSingleBranchNode(h *hash.Hasher, enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, path []uint8, i uint8) ([]byte, error) {
+func (tr *State) setSingleBranchNode(enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, path []uint8, i uint8) ([]byte, error) {
 	if i == 16 {
-		return tr.setNode(h, enc, tr.getNewNode(compactEncode(path, true), node[i]))
+		return tr.setNode(enc, tr.getNewNode(compactEncode(path, true), node[i]))
 	}
 	child, err := tr.getNode(dec, node[i])
 	if err != nil {
 		return nil, err
 	}
 	if len(child) == 16 {
-		return tr.setNode(h, enc, tr.getNewNode(compactEncode(append(path, i), false), node[i]))
+		return tr.setNode(enc, tr.getNewNode(compactEncode(append(path, i), false), node[i]))
 	}
 	short, term, err := compactDecode(child[0])
 	if err != nil {
 		return nil, err
 	}
-	return tr.setNode(h, enc, tr.getNewNode(compactEncode(append(append(path, i), short...), term), child[1]))
+	return tr.setNode(enc, tr.getNewNode(compactEncode(append(append(path, i), short...), term), child[1]))
 }
 
-func (tr *State) setLeafOrExtension(h *hash.Hasher, enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, path []uint8, value []byte) ([]byte, error) {
+func (tr *State) setLeafOrExtension(enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, path []uint8, value []byte) ([]byte, error) {
 	short, term, err := compactDecode(node[0])
 	if err != nil {
 		return nil, err
 	}
 	if term {
-		return tr.setLeaf(h, enc, dec, node, short, path, value)
+		return tr.setLeaf(enc, dec, node, short, path, value)
 	}
-	return tr.setExtension(h, enc, dec, node, short, path, value)
+	return tr.setExtension(enc, dec, node, short, path, value)
 }
 
-func (tr *State) setLeaf(h *hash.Hasher, enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, short []uint8, path []uint8, value []byte) ([]byte, error) {
+func (tr *State) setLeaf(enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, short []uint8, path []uint8, value []byte) ([]byte, error) {
 	o, rs, rp := overlap(short, path)
 	if len(rs) == 0 && len(rp) == 0 {
-		return tr.setLeafIsPath(h, enc, node, value)
+		return tr.setLeafIsPath(enc, node, value)
 	}
 	if len(rs) == 0 {
-		return tr.setLeafNoShort(h, enc, dec, node, o, rp, value)
+		return tr.setLeafNoShort(enc, dec, node, o, rp, value)
 	}
 	if len(rp) == 0 {
-		return tr.setLeafNoPath(h, enc, dec, node, o, rs, value)
+		return tr.setLeafNoPath(enc, dec, node, o, rs, value)
 	}
-	return tr.setLeafShortAndPath(h, enc, dec, node, o, rs, rp, value)
+	return tr.setLeafShortAndPath(enc, dec, node, o, rs, rp, value)
 }
 
-func (tr *State) setLeafIsPath(h *hash.Hasher, enc *figbuf.Encoder, node [][]byte, value []byte) ([]byte, error) {
+func (tr *State) setLeafIsPath(enc *figbuf.Encoder, node [][]byte, value []byte) ([]byte, error) {
 	/*
 		<1234> : <value>
 		<1234> -> value
 	*/
 	node[1] = value
-	return tr.setNode(h, enc, node)
+	return tr.setNode(enc, node)
 }
 
-func (tr *State) setLeafNoShort(h *hash.Hasher, enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, overlap, path []uint8, value []byte) ([]byte, error) {
+func (tr *State) setLeafNoShort(enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, overlap, path []uint8, value []byte) ([]byte, error) {
 	/*
 		<1234> : <value>
 		<123456> -> value
@@ -234,25 +228,25 @@ func (tr *State) setLeafNoShort(h *hash.Hasher, enc *figbuf.Encoder, dec *figbuf
 	*/
 	branch := tr.getNewBranch()
 	branch[16] = node[1]
-	k, err := tr.setNode(h, enc, tr.getNewNode(compactEncode(path[1:], true), value))
+	k, err := tr.setNode(enc, tr.getNewNode(compactEncode(path[1:], true), value))
 	if err != nil {
 		return nil, err
 	}
 	branch[path[0]] = k
 	if i, ok := singleNode(branch); ok {
-		return tr.setSingleBranchNode(h, enc, dec, branch, overlap, i)
+		return tr.setSingleBranchNode(enc, dec, branch, overlap, i)
 	}
-	k, err = tr.setNode(h, enc, branch)
+	k, err = tr.setNode(enc, branch)
 	if err != nil {
 		return nil, err
 	}
 	if len(overlap) == 0 {
 		return k, nil
 	}
-	return tr.setNode(h, enc, tr.getNewNode(compactEncode(overlap, false), k))
+	return tr.setNode(enc, tr.getNewNode(compactEncode(overlap, false), k))
 }
 
-func (tr *State) setLeafNoPath(h *hash.Hasher, enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, overlap, path []uint8, value []byte) ([]byte, error) {
+func (tr *State) setLeafNoPath(enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, overlap, path []uint8, value []byte) ([]byte, error) {
 	/*
 		<123456> : <value>
 		<1234> -> value
@@ -270,25 +264,25 @@ func (tr *State) setLeafNoPath(h *hash.Hasher, enc *figbuf.Encoder, dec *figbuf.
 	*/
 	branch := tr.getNewBranch()
 	branch[16] = value
-	k, err := tr.setNode(h, enc, tr.getNewNode(compactEncode(path[1:], true), node[1]))
+	k, err := tr.setNode(enc, tr.getNewNode(compactEncode(path[1:], true), node[1]))
 	if err != nil {
 		return nil, err
 	}
 	branch[path[0]] = k
 	if i, ok := singleNode(branch); ok {
-		return tr.setSingleBranchNode(h, enc, dec, branch, overlap, i)
+		return tr.setSingleBranchNode(enc, dec, branch, overlap, i)
 	}
-	k, err = tr.setNode(h, enc, branch)
+	k, err = tr.setNode(enc, branch)
 	if err != nil {
 		return nil, err
 	}
 	if len(overlap) == 0 {
 		return k, nil
 	}
-	return tr.setNode(h, enc, tr.getNewNode(compactEncode(overlap, false), k))
+	return tr.setNode(enc, tr.getNewNode(compactEncode(overlap, false), k))
 }
 
-func (tr *State) setLeafShortAndPath(h *hash.Hasher, enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, overlap, short, path []uint8, value []byte) ([]byte, error) {
+func (tr *State) setLeafShortAndPath(enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, overlap, short, path []uint8, value []byte) ([]byte, error) {
 	/*
 		<123456> : <value>
 		<123478> -> value
@@ -307,44 +301,44 @@ func (tr *State) setLeafShortAndPath(h *hash.Hasher, enc *figbuf.Encoder, dec *f
 		hashC: <> : value
 	*/
 	branch := tr.getNewBranch()
-	k, err := tr.setNode(h, enc, tr.getNewNode(compactEncode(short[1:], true), node[1]))
+	k, err := tr.setNode(enc, tr.getNewNode(compactEncode(short[1:], true), node[1]))
 	if err != nil {
 		return nil, err
 	}
 	branch[short[0]] = k
-	k, err = tr.setNode(h, enc, tr.getNewNode(compactEncode(path[1:], true), value))
+	k, err = tr.setNode(enc, tr.getNewNode(compactEncode(path[1:], true), value))
 	if err != nil {
 		return nil, err
 	}
 	branch[path[0]] = k
 	if i, ok := singleNode(branch); ok {
-		return tr.setSingleBranchNode(h, enc, dec, branch, overlap, i)
+		return tr.setSingleBranchNode(enc, dec, branch, overlap, i)
 	}
-	k, err = tr.setNode(h, enc, branch)
+	k, err = tr.setNode(enc, branch)
 	if err != nil {
 		return nil, err
 	}
 	if len(overlap) == 0 {
 		return k, nil
 	}
-	return tr.setNode(h, enc, tr.getNewNode(compactEncode(overlap, false), k))
+	return tr.setNode(enc, tr.getNewNode(compactEncode(overlap, false), k))
 }
 
-func (tr *State) setExtension(h *hash.Hasher, enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, short []uint8, path []uint8, value []byte) ([]byte, error) {
+func (tr *State) setExtension(enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, short []uint8, path []uint8, value []byte) ([]byte, error) {
 	o, rs, rp := overlap(short, path)
 	if len(rs) == 0 && len(rp) == 0 {
-		return tr.setExtensionIsPath(h, enc, dec, node, path, value)
+		return tr.setExtensionIsPath(enc, dec, node, path, value)
 	}
 	if len(rs) == 0 {
-		return tr.setExtensionNoShort(h, enc, dec, node, o, rp, value)
+		return tr.setExtensionNoShort(enc, dec, node, o, rp, value)
 	}
 	if len(rp) == 0 {
-		return tr.setExtensionNoPath(h, enc, dec, node, o, rs, value)
+		return tr.setExtensionNoPath(enc, dec, node, o, rs, value)
 	}
-	return tr.setExtensionShortAndPath(h, enc, dec, node, o, rs, rp, value)
+	return tr.setExtensionShortAndPath(enc, dec, node, o, rs, rp, value)
 }
 
-func (tr *State) setExtensionIsPath(h *hash.Hasher, enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, path []uint8, value []byte) ([]byte, error) {
+func (tr *State) setExtensionIsPath(enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, path []uint8, value []byte) ([]byte, error) {
 	/*
 		<1234> : hashA
 		<1234> -> value
@@ -375,17 +369,17 @@ func (tr *State) setExtensionIsPath(h *hash.Hasher, enc *figbuf.Encoder, dec *fi
 	}
 	branch[16] = value
 	if i, ok := singleNode(branch); ok {
-		return tr.setSingleBranchNode(h, enc, dec, branch, path, i)
+		return tr.setSingleBranchNode(enc, dec, branch, path, i)
 	}
-	k, err := tr.setNode(h, enc, branch)
+	k, err := tr.setNode(enc, branch)
 	if err != nil {
 		return nil, err
 	}
 	node[1] = k
-	return tr.setNode(h, enc, node)
+	return tr.setNode(enc, node)
 }
 
-func (tr *State) setExtensionNoShort(h *hash.Hasher, enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, overlap, path []uint8, value []byte) ([]byte, error) {
+func (tr *State) setExtensionNoShort(enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, overlap, path []uint8, value []byte) ([]byte, error) {
 	/*
 		<1234> : hashA
 		<123456> -> value
@@ -414,23 +408,23 @@ func (tr *State) setExtensionNoShort(h *hash.Hasher, enc *figbuf.Encoder, dec *f
 	if err != nil {
 		return nil, err
 	}
-	k, err := tr.set(h, enc, dec, branch[path[0]], path[1:], value)
+	k, err := tr.set(enc, dec, branch[path[0]], path[1:], value)
 	if err != nil {
 		return nil, err
 	}
 	branch[path[0]] = k
 	if i, ok := singleNode(branch); ok {
-		return tr.setSingleBranchNode(h, enc, dec, branch, overlap, i)
+		return tr.setSingleBranchNode(enc, dec, branch, overlap, i)
 	}
-	k, err = tr.setNode(h, enc, branch)
+	k, err = tr.setNode(enc, branch)
 	if err != nil {
 		return nil, err
 	}
 	node[1] = k
-	return tr.setNode(h, enc, node)
+	return tr.setNode(enc, node)
 }
 
-func (tr *State) setExtensionNoPath(h *hash.Hasher, enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, overlap, short []uint8, value []byte) ([]byte, error) {
+func (tr *State) setExtensionNoPath(enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, overlap, short []uint8, value []byte) ([]byte, error) {
 	/*
 		<123456> : hashA
 		<1234> -> value
@@ -468,7 +462,7 @@ func (tr *State) setExtensionNoPath(h *hash.Hasher, enc *figbuf.Encoder, dec *fi
 	if len(short) == 1 {
 		branch[short[0]] = node[1]
 	} else {
-		k, err = tr.setNode(h, enc, tr.getNewNode(compactEncode(short[1:], false), node[1]))
+		k, err = tr.setNode(enc, tr.getNewNode(compactEncode(short[1:], false), node[1]))
 		if err != nil {
 			return nil, err
 		}
@@ -476,19 +470,19 @@ func (tr *State) setExtensionNoPath(h *hash.Hasher, enc *figbuf.Encoder, dec *fi
 	}
 	branch[16] = value
 	if i, ok := singleNode(branch); ok {
-		return tr.setSingleBranchNode(h, enc, dec, branch, overlap, i)
+		return tr.setSingleBranchNode(enc, dec, branch, overlap, i)
 	}
-	k, err = tr.setNode(h, enc, branch)
+	k, err = tr.setNode(enc, branch)
 	if err != nil {
 		return nil, err
 	}
 	if len(overlap) == 0 {
 		return k, nil
 	}
-	return tr.setNode(h, enc, tr.getNewNode(compactEncode(overlap, false), k))
+	return tr.setNode(enc, tr.getNewNode(compactEncode(overlap, false), k))
 }
 
-func (tr *State) setExtensionShortAndPath(h *hash.Hasher, enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, overlap, short, path []uint8, value []byte) ([]byte, error) {
+func (tr *State) setExtensionShortAndPath(enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, overlap, short, path []uint8, value []byte) ([]byte, error) {
 	/*
 		<123456> : hashA
 		<123478> -> value
@@ -511,31 +505,31 @@ func (tr *State) setExtensionShortAndPath(h *hash.Hasher, enc *figbuf.Encoder, d
 	if len(short) == 1 {
 		branch[short[0]] = node[1]
 	} else {
-		k, err = tr.setNode(h, enc, tr.getNewNode(compactEncode(short[1:], false), node[1]))
+		k, err = tr.setNode(enc, tr.getNewNode(compactEncode(short[1:], false), node[1]))
 		if err != nil {
 			return nil, err
 		}
 		branch[short[0]] = k
 	}
-	k, err = tr.setNode(h, enc, tr.getNewNode(compactEncode(path[1:], true), value))
+	k, err = tr.setNode(enc, tr.getNewNode(compactEncode(path[1:], true), value))
 	if err != nil {
 		return nil, err
 	}
 	branch[path[0]] = k
 	if i, ok := singleNode(branch); ok {
-		return tr.setSingleBranchNode(h, enc, dec, branch, overlap, i)
+		return tr.setSingleBranchNode(enc, dec, branch, overlap, i)
 	}
-	k, err = tr.setNode(h, enc, branch)
+	k, err = tr.setNode(enc, branch)
 	if err != nil {
 		return nil, err
 	}
 	if len(overlap) == 0 {
 		return k, nil
 	}
-	return tr.setNode(h, enc, tr.getNewNode(compactEncode(overlap, false), k))
+	return tr.setNode(enc, tr.getNewNode(compactEncode(overlap, false), k))
 }
 
-func (tr *State) setNode(h *hash.Hasher, enc *figbuf.Encoder, node [][]byte) ([]byte, error) {
+func (tr *State) setNode(enc *figbuf.Encoder, node [][]byte) ([]byte, error) {
 	if nullNode(node) {
 		return nil, nil
 	}
@@ -543,7 +537,7 @@ func (tr *State) setNode(h *hash.Hasher, enc *figbuf.Encoder, node [][]byte) ([]
 	if len(v) < 32 {
 		return enc.Copy(v), nil
 	}
-	k := h.Hash256(node...)
+	k := hash.Hash256(node...)
 	err := tr.KeyStore.Set(k, v)
 	if err != nil {
 		return nil, err
@@ -685,19 +679,16 @@ func Validate(root []byte, key, value []byte, proof [][][]byte) bool {
 	enc := figbuf.EncoderPool.Get().(*figbuf.Encoder)
 	defer figbuf.EncoderPool.Put(enc)
 
-	h := hash.HasherPool.Get().(*hash.Hasher)
-	defer hash.HasherPool.Put(h)
-
 	path := nibbles(key)
 
-	nh, ok := validate(h, enc, path, value, proof)
+	nh, ok := validate(enc, path, value, proof)
 	if ok && bytes.Equal(root, nh) {
 		return true
 	}
 	return false
 }
 
-func validate(h *hash.Hasher, enc *figbuf.Encoder, path []uint8, value []byte, proof [][][]byte) ([]byte, bool) {
+func validate(enc *figbuf.Encoder, path []uint8, value []byte, proof [][][]byte) ([]byte, bool) {
 	if len(proof) == 0 {
 		return nil, false
 	}
@@ -705,13 +696,13 @@ func validate(h *hash.Hasher, enc *figbuf.Encoder, path []uint8, value []byte, p
 	if len(node) == 17 {
 		if len(path) == 0 {
 			if bytes.Equal(value, node[16]) {
-				return hashNode(h, enc, node), true
+				return hashNode(enc, node), true
 			}
 			return nil, false
 		}
-		nh, ok := validate(h, enc, path[1:], value, proof[1:])
+		nh, ok := validate(enc, path[1:], value, proof[1:])
 		if ok && bytes.Equal(nh, node[path[0]]) {
-			return hashNode(h, enc, node), true
+			return hashNode(enc, node), true
 		}
 		return nil, false
 	}
@@ -722,7 +713,7 @@ func validate(h *hash.Hasher, enc *figbuf.Encoder, path []uint8, value []byte, p
 	if term {
 		if pathEqual(short, path) {
 			if bytes.Equal(value, node[1]) {
-				return hashNode(h, enc, node), true
+				return hashNode(enc, node), true
 			}
 		}
 		return nil, false
@@ -731,14 +722,14 @@ func validate(h *hash.Hasher, enc *figbuf.Encoder, path []uint8, value []byte, p
 	if len(rs) != 0 {
 		return nil, false
 	}
-	nh, ok := validate(h, enc, rp, value, proof[1:])
+	nh, ok := validate(enc, rp, value, proof[1:])
 	if ok && bytes.Equal(nh, node[1]) {
-		return hashNode(h, enc, node), true
+		return hashNode(enc, node), true
 	}
 	return nil, false
 }
 
-func hashNode(h *hash.Hasher, enc *figbuf.Encoder, node [][]byte) []byte {
+func hashNode(enc *figbuf.Encoder, node [][]byte) []byte {
 	if nullNode(node) {
 		return nil
 	}
@@ -746,7 +737,7 @@ func hashNode(h *hash.Hasher, enc *figbuf.Encoder, node [][]byte) []byte {
 	if len(v) < 32 {
 		return enc.Copy(v)
 	}
-	return h.Hash256(node...)
+	return hash.Hash256(node...)
 }
 
 // Helper Functions

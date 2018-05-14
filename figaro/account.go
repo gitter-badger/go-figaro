@@ -3,6 +3,12 @@ package figaro
 
 import "math/big"
 
+// AddressSize is the size of an address, in bytes
+const AddressSize = 32
+
+// Address is an AddressSize length unique identifier
+type Address []byte
+
 // Account represents an account in Figaro
 type Account struct {
 	Nonce       *big.Int
@@ -13,18 +19,23 @@ type Account struct {
 	StorageRoot []byte
 }
 
-// AccountDataService should implement a Merkle database mapped to an account
-type AccountDataService interface {
-	SaveAccount(root []byte, account *Account) []byte
-	FetchAccount(root []byte, address [4]byte) (*Account, error)
-	ProveAccount(root []byte, address [4]byte) (*Account, [][][]byte, error)
-	ValidateAccount(root []byte, account *Account, proof [][][]byte) bool
+// AccountEncodingService should implement deterministic encoding/encoding of an account
+type AccountEncodingService interface {
+	EncodeAccount(account *Account) ([]byte, error)
+	DecodeAccount(buf []byte) (*Account, error)
 }
 
-// AccountStorageDataService should implement a Merkle database mapped to an account's storage
-type AccountStorageDataService interface {
-	SaveAccountStorage(worldroot []byte, account *Account, key, data []byte) []byte
-	FetchAccountStorage(account *Account, key []byte) ([]byte, error)
-	ProveAccountStorage(account *Account, key []byte) ([]byte, [][][]byte, error)
-	ValidateAccountStorage(account *Account, key, data []byte, proof [][][]byte) bool
+// AccountDataService should implement a Merkle database mapped to an account
+type AccountDataService interface {
+	// Account data services
+	SaveAccount(ed AccountEncodingService, root []byte, account *Account) []byte
+	FetchAccount(ed AccountEncodingService, root []byte, address [4]byte) (*Account, error)
+	ProveAccount(ed AccountEncodingService, root []byte, address [4]byte) (*Account, [][][]byte, error)
+	ValidateAccounted(ed AccountEncodingService, root []byte, account *Account, proof [][][]byte) bool
+
+	// Account storage data services
+	SaveAccountStorage(ed AccountEncodingService, oot []byte, account *Account, key, data []byte) []byte
+	FetchAccountStorage(ed AccountEncodingService, account *Account, key []byte) ([]byte, error)
+	ProveAccountStorage(ed AccountEncodingService, account *Account, key []byte) ([]byte, [][][]byte, error)
+	ValidateAccountStorage(ed AccountEncodingService, account *Account, key, data []byte, proof [][][]byte) bool
 }

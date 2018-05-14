@@ -35,15 +35,14 @@ func ExampleSelfUnmarshaler_next() {
 	s := &SelfUnmarshalerNext{}
 	dec := &figbuf.Decoder{}
 	bs := []byte{0xc5, 0x83, 0x42, 0x6f, 0x62, 0x25}
-	b, _, err := dec.DecodeNextList(bs)
-	if err != nil {
-		log.Fatal(err)
+	var r []byte
+	r = dec.DecodeNextList(bs, func(b []byte) {
+		s.Name, r = dec.DecodeNextString(b)
+		s.Age, r = dec.DecodeNextUint(r)
+	})
+	if len(r) > 0 {
+		log.Fatal("invalid encoding")
 	}
-	s.Name, b, err = dec.DecodeNextString(b)
-	if err != nil {
-		log.Fatal(err)
-	}
-	s.Age, b, err = dec.DecodeNextUint(b)
 	fmt.Printf("%+v\n", *s)
 	// Output: {Name:Bob Age:37}
 }
@@ -76,18 +75,11 @@ func BenchmarkSelfUnmarshalerNext(b *testing.B) {
 	s := &SelfUnmarshalerNext{}
 	dec := &figbuf.Decoder{}
 	bs := []byte{0xc5, 0x83, 0x42, 0x6f, 0x62, 0x25}
-	var err error
-	var l, r []byte
 	for i := 0; i < b.N; i++ {
-		l, r, err = dec.DecodeNextList(bs)
-		if err != nil {
-			log.Fatal(err)
-		}
-		s.Name, r, err = dec.DecodeNextString(l)
-		if err != nil {
-			log.Fatal(err)
-		}
-		s.Age, r, err = dec.DecodeNextUint(r)
+		dec.DecodeNextList(bs, func(b []byte) {
+			s.Name, b = dec.DecodeNextString(b)
+			s.Age, b = dec.DecodeNextUint(b)
+		})
 	}
 }
 

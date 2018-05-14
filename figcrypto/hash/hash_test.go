@@ -20,11 +20,3 @@ func BenchmarkHash256(b *testing.B) {
 		hash.Hash256(archive)
 	}
 }
-
-func BenchmarkHasher_Hash256(b *testing.B) {
-	archive := []byte{0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa}
-	hasher := hash.NewHasher()
-	for i := 0; i < b.N; i++ {
-		hasher.Hash256(archive)
-	}
-}
