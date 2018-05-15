@@ -7,22 +7,10 @@ import (
 	"time"
 )
 
-const (
-	// SignatureSize is the size of a signature, in bytes.
-	SignatureSize = 64
-	// TxHashSize is the size of a signature, in bytes.
-	TxHashSize = 32
-)
-
-// Signature is a cryptographic signature of the TxHash, which will be validated against the sender's public key address.
-type Signature []byte
-
-// A TxHash is a hash of valuable transaction fields. Concretely `H(Enc(Nonce, To, Stake, Value, Data))`.
-type TxHash []byte
-
 // A TxCommit must be mined into a block.
 type TxCommit struct {
-	TxHash TxHash
+	// A TxHash is a hash of valuable transaction fields. Concretely `H(Enc(Nonce, To, Stake, Value, Data))`.
+	TxHash []byte
 }
 
 // A PendingTxCommit implements the commit phase of MPTx.
@@ -34,9 +22,9 @@ type PendingTxCommit struct {
 
 // A Transaction must be mined into a block.
 type Transaction struct {
-	Signature Signature
-	Sender    Address
-	To        Address
+	Signature []byte
+	Sender    []byte
+	To        []byte
 	Nonce     *big.Int
 	Stake     *big.Int
 	Value     *big.Int
@@ -48,6 +36,10 @@ type PendingTransaction struct {
 	Transaction
 
 	Received time.Time
+	// Short-form address of the sender. If this is part of the transaction msg,
+	// then it should be converted to a long-form address and set the Sender field,
+	// as ShortAddr is not saved in the tx archive.
+	ShortAddr string
 }
 
 // TransactionEncodingService should implement deterministic encoding/encoding of an account

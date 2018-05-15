@@ -10,14 +10,17 @@ import (
 
 func ExampleVerify() {
 	pubKey, privKey, err := signature.GenerateKey(nil)
+	addr := signature.ToBase58(pubKey)
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	msg := []byte("hello world")
 	sig, err := signature.Sign(privKey, msg)
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Printf("Addres: %s\n", addr)
 	log.Printf("PubKey: %#x\n", pubKey)
 	log.Printf("PrivKey: %#x\n", privKey)
 	log.Printf("Msg: %#x\n", msg)

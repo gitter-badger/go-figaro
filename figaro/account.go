@@ -3,12 +3,6 @@ package figaro
 
 import "math/big"
 
-// AddressSize is the size of an address, in bytes
-const AddressSize = 32
-
-// Address is an AddressSize length unique identifier
-type Address []byte
-
 // Account represents an account in Figaro
 type Account struct {
 	Nonce       *big.Int
