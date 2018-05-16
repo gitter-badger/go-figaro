@@ -42,6 +42,9 @@ func (db *DB) GetTxCommit(ed figaro.TransactionEncodingService, root []byte, ind
 	if err != nil {
 		return nil, err
 	}
+	if len(e) == 0 {
+		return nil, nil
+	}
 	return ed.DecodeTxCommit(e)
 }
 
@@ -50,6 +53,9 @@ func (db *DB) GetAndProveTxCommit(ed figaro.TransactionEncodingService, root []b
 	e, p, err := db.Archive.GetAndProve(root, int(index))
 	if err != nil {
 		return nil, nil, err
+	}
+	if len(e) == 0 {
+		return nil, nil, nil
 	}
 	c, err := ed.DecodeTxCommit(e)
 	if err != nil {
@@ -103,6 +109,9 @@ func (db *DB) GetTransaction(ed figaro.TransactionEncodingService, root []byte, 
 	if err != nil {
 		return nil, err
 	}
+	if len(e) == 0 {
+		return nil, nil
+	}
 	return ed.DecodeTransaction(e)
 }
 
@@ -111,6 +120,9 @@ func (db *DB) GetAndProveTransaction(ed figaro.TransactionEncodingService, root 
 	e, p, err := db.Archive.GetAndProve(root, int(index))
 	if err != nil {
 		return nil, nil, err
+	}
+	if len(e) == 0 {
+		return nil, nil, nil
 	}
 	c, err := ed.DecodeTransaction(e)
 	if err != nil {

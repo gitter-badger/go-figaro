@@ -35,8 +35,7 @@ func (ed EncoderDecoder) EncodeTransaction(tx *figaro.Transaction) (buf []byte, 
 
 	buf = enc.EncodeNextList(nil, func(buf []byte) []byte {
 		buf = enc.EncodeNextBytes(buf, tx.Signature)
-		buf = enc.EncodeNextBytes(buf, tx.Sender)
-		buf = enc.EncodeNextBytes(buf, tx.To)
+		buf = enc.EncodeNextString(buf, tx.To)
 		buf = enc.EncodeNextTextMarshaler(buf, tx.Nonce)
 		buf = enc.EncodeNextTextMarshaler(buf, tx.Stake)
 		buf = enc.EncodeNextTextMarshaler(buf, tx.Value)
@@ -65,8 +64,7 @@ func (ed EncoderDecoder) DecodeTransaction(buf []byte) (tx *figaro.Transaction, 
 	var r []byte
 	r = dec.DecodeNextList(buf, func(b []byte) {
 		tx.Signature, r = dec.DecodeNextBytes(b)
-		tx.Sender, r = dec.DecodeNextBytes(r)
-		tx.To, r = dec.DecodeNextBytes(r)
+		tx.To, r = dec.DecodeNextString(r)
 		r = dec.DecodeNextTextUnmarshaler(r, tx.Nonce)
 		r = dec.DecodeNextTextUnmarshaler(r, tx.Stake)
 		r = dec.DecodeNextTextUnmarshaler(r, tx.Value)

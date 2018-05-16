@@ -23,8 +23,7 @@ type PendingTxCommit struct {
 // A Transaction must be mined into a block.
 type Transaction struct {
 	Signature []byte
-	Sender    []byte
-	To        []byte
+	To        string
 	Nonce     *big.Int
 	Stake     *big.Int
 	Value     *big.Int
@@ -36,10 +35,10 @@ type PendingTransaction struct {
 	Transaction
 
 	Received time.Time
-	// Short-form address of the sender. If this is part of the transaction msg,
-	// then it should be converted to a long-form address and set the Sender field,
-	// as ShortAddr is not saved in the tx archive.
-	ShortAddr string
+	// The (compressed) public key (33 bytes) should be provided in a transaction when
+	// possible; however, it is not required in low-bandwidth situations and is not saved
+	// to the database as the sender can be identified from the signature and tx hash alone.
+	PublicKey []byte
 }
 
 // TransactionEncodingService should implement deterministic encoding/encoding of an account

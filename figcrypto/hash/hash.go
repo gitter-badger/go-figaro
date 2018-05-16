@@ -5,6 +5,7 @@ import (
 	"crypto"
 
 	"golang.org/x/crypto/blake2b"
+	"golang.org/x/crypto/ripemd160"
 )
 
 // Hash is the crypto hash used by figcrypto
@@ -20,6 +21,15 @@ func Hash256(b ...[]byte) []byte {
 	if err != nil {
 		panic(err)
 	}
+	for _, item := range b {
+		h.Write(item)
+	}
+	return h.Sum(nil)
+}
+
+// Hash160 returns a hash of 0 or more []byte
+func Hash160(b ...[]byte) []byte {
+	h := ripemd160.New()
 	for _, item := range b {
 		h.Write(item)
 	}

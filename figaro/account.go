@@ -6,7 +6,7 @@ import "math/big"
 // Account represents an account in Figaro
 type Account struct {
 	Nonce       *big.Int
-	Address     []byte
+	Address     string
 	Balance     *big.Int
 	Stake       *big.Int
 	Code        []byte
@@ -23,8 +23,8 @@ type AccountEncodingService interface {
 type AccountDataService interface {
 	// Account data services
 	SaveAccount(ed AccountEncodingService, root []byte, account *Account) []byte
-	FetchAccount(ed AccountEncodingService, root []byte, address [4]byte) (*Account, error)
-	ProveAccount(ed AccountEncodingService, root []byte, address [4]byte) (*Account, [][][]byte, error)
+	FetchAccount(ed AccountEncodingService, root []byte, address string) (*Account, error)
+	ProveAccount(ed AccountEncodingService, root []byte, address string) (*Account, [][][]byte, error)
 	ValidateAccounted(ed AccountEncodingService, root []byte, account *Account, proof [][][]byte) bool
 
 	// Account storage data services
