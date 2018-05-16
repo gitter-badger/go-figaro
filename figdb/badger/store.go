@@ -52,7 +52,7 @@ func (ks *KeyStore) Close() {
 // Badger is safe for concurrent access via transactions
 
 // Get gets a value from the db at key
-func (ks *KeyStore) Get(key []byte) ([]byte, error) {
+func (ks *KeyStore) Get(key types.Key) ([]byte, error) {
 	if ks.DB == nil {
 		log.Panic(ErrCalledAfterClose)
 	}
@@ -233,19 +233,19 @@ func (ks *KeyStore) Load(r io.Reader) error {
 	return ks.DB.Load(r)
 }
 
-func (ks *KeyStore) addToBatch(key, value []byte) error {
+func (ks *KeyStore) addToBatch(key types.Key, value []byte) error {
 	ks.block.Lock()
 	defer ks.block.Unlock()
 
-	ks.batchDB[string(key)] = string(value)
+	ks.batchDB[key.String()] = string(value)
 	return nil
 }
 
-func (ks *KeyStore) getFromBatch(key []byte) ([]byte, error) {
+func (ks *KeyStore) getFromBatch(key types.Key) ([]byte, error) {
 	ks.block.RLock()
 	defer ks.block.RUnlock()
 
-	v := ks.batchDB[string(key)]
+	v := ks.batchDB[key.String()]
 	if v == "" {
 		return nil, badger.ErrKeyNotFound
 	}

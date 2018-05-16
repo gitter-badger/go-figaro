@@ -11,10 +11,23 @@ type KeyStoreUpdateBatch []KeyStoreUpdate
 
 // KeyStore is an interface for a backing keystore
 type KeyStore interface {
-	Get(key []byte) (value []byte, err error)
-	Set(key []byte, value []byte) error
-	Delete(key []byte) error
+	Get(key Key) (value []byte, err error)
+	Set(key Key, value []byte) error
+	Delete(key Key) error
 	Batch()
 	Write() error
 	BatchUpdate(updates KeyStoreUpdateBatch) error
+}
+
+// Key is a []byte that can be conveniently converted to a string
+type Key []byte
+
+func (k Key) String() string {
+	return string(k)
+}
+
+// Cache is a generic cache interface used by this package
+type Cache interface {
+	Add(k Key, v []byte)
+	Get(k Key) (v []byte, ok bool)
 }

@@ -3,6 +3,7 @@ package figdb
 
 import (
 	"github.com/figaro-tech/go-figaro/figdb/badger"
+	"github.com/figaro-tech/go-figaro/figdb/filter"
 	"github.com/figaro-tech/go-figaro/figdb/mock"
 	"github.com/figaro-tech/go-figaro/figdb/trie"
 )
@@ -13,6 +14,7 @@ func StateValidate(root, key, value []byte, proof [][][]byte) bool {
 }
 
 type trieDB struct {
+	Set     *filter.Set
 	Archive *trie.Archive
 	State   *trie.State
 }
@@ -37,6 +39,9 @@ func New(datapath string) *FigDB {
 	return &FigDB{
 		DB: db,
 		trieDB: trieDB{
+			Set: &filter.Set{
+				KeyStore: db,
+			},
 			Archive: &trie.Archive{
 				KeyStore: db,
 			},
@@ -53,6 +58,9 @@ func NewMem() *FigMemDB {
 	return &FigMemDB{
 		DB: db,
 		trieDB: trieDB{
+			Set: &filter.Set{
+				KeyStore: db,
+			},
 			Archive: &trie.Archive{
 				KeyStore: db,
 			},

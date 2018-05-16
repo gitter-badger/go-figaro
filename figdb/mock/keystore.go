@@ -22,8 +22,8 @@ func NewKeyStore() *KeyStore {
 }
 
 // Get returns a trie value given a trie key
-func (ks *KeyStore) Get(key []byte) ([]byte, error) {
-	v := ks.DB[string(key)]
+func (ks *KeyStore) Get(key types.Key) ([]byte, error) {
+	v := ks.DB[key.String()]
 	if v == "" {
 		return nil, nil
 	}
@@ -31,16 +31,16 @@ func (ks *KeyStore) Get(key []byte) ([]byte, error) {
 }
 
 // Set updates a trie key with a trie value
-func (ks *KeyStore) Set(key []byte, value []byte) error {
+func (ks *KeyStore) Set(key types.Key, value []byte) error {
 	if value != nil {
-		ks.DB[string(key)] = string(value)
+		ks.DB[key.String()] = string(value)
 	}
 	return nil
 }
 
 // Delete removes a trie key/value
-func (ks *KeyStore) Delete(key []byte) error {
-	delete(ks.DB, string(key))
+func (ks *KeyStore) Delete(key types.Key) error {
+	delete(ks.DB, key.String())
 	return nil
 }
 
