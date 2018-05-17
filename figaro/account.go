@@ -5,12 +5,12 @@ import "math/big"
 
 // Account represents an account in Figaro
 type Account struct {
-	Nonce       *big.Int
 	Address     string
-	Balance     *big.Int
+	Nonce       *big.Int
 	Stake       *big.Int
-	Code        []byte
+	Balance     *big.Int
 	StorageRoot []byte
+	Code        []byte
 }
 
 // AccountEncodingService should implement deterministic encoding/encoding of an account

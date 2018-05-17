@@ -8,10 +8,7 @@ import (
 )
 
 // A TxCommit must be mined into a block.
-type TxCommit struct {
-	// A TxHash is a hash of valuable transaction fields. Concretely `H(Enc(Nonce, To, Stake, Value, Data))`.
-	TxHash []byte
-}
+type TxCommit []byte
 
 // A PendingTxCommit implements the commit phase of MPTx.
 type PendingTxCommit struct {
@@ -43,8 +40,8 @@ type PendingTransaction struct {
 
 // TransactionEncodingService should implement deterministic encoding/encoding of an account
 type TransactionEncodingService interface {
-	EncodeTxCommit(tx *TxCommit) ([]byte, error)
-	DecodeTxCommit(buf []byte) (*TxCommit, error)
+	EncodeTxCommit(tx TxCommit) ([]byte, error)
+	DecodeTxCommit(buf []byte) (TxCommit, error)
 
 	EncodeTransaction(tx *Transaction) ([]byte, error)
 	DecodeTransaction(buf []byte) (*Transaction, error)
@@ -53,11 +50,9 @@ type TransactionEncodingService interface {
 // TransactionDataService provides merkelized data services for TxCommit and Transaction histories
 type TransactionDataService interface {
 	// TxCommit data services
-	ArchiveTxCommits(ed TransactionEncodingService, commits ...*TxCommit) ([]byte, error)
-	RetrieveTxCommits(ed TransactionEncodingService, root []byte) ([]*TxCommit, error)
-	GetTxCommit(ed TransactionEncodingService, root []byte, index int) (*TxCommit, error)
-	GetAndProveTxCommit(ed TransactionEncodingService, root []byte, index int) (*TxCommit, [][]byte, error)
-	ValidateTxCommit(ed TransactionEncodingService, root []byte, index int, commit *TxCommit, proof [][]byte) bool
+	SetTxCommits(ed TransactionEncodingService, commits ...TxCommit) ([]byte, error)
+	HasTxCommits(ed TransactionEncodingService, root []byte, commits ...TxCommit) ([]bool, error)
+	HasTxCommit(ed TransactionEncodingService, root []byte, commit TxCommit) (bool, error)
 
 	// Transaction data services
 	ArchiveTransactions(ed TransactionEncodingService, commits ...*Transaction) ([]byte, error)

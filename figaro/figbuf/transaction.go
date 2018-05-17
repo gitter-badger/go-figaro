@@ -9,13 +9,20 @@ import (
 )
 
 // EncodeTxCommit encodes
-func (ed EncoderDecoder) EncodeTxCommit(tx *figaro.TxCommit) ([]byte, error) {
-	return tx.TxHash, nil
+func (ed EncoderDecoder) EncodeTxCommit(tx figaro.TxCommit) ([]byte, error) {
+	enc := figbuf.EncoderPool.Get().(*figbuf.Encoder)
+	defer figbuf.EncoderPool.Put(enc)
+
+	return enc.EncodeBytes(tx), nil
 }
 
 // DecodeTxCommit decodes
-func (ed EncoderDecoder) DecodeTxCommit(buf []byte) (*figaro.TxCommit, error) {
-	return &figaro.TxCommit{TxHash: buf}, nil
+func (ed EncoderDecoder) DecodeTxCommit(buf []byte) (tx figaro.TxCommit, err error) {
+	dec := figbuf.DecoderPool.Get().(*figbuf.Decoder)
+	defer figbuf.DecoderPool.Put(dec)
+
+	tx, _, err = dec.DecodeBytes(buf)
+	return
 }
 
 // EncodeTransaction encodes

@@ -91,7 +91,7 @@ func (ks *KeyStore) Get(key types.Key) ([]byte, error) {
 }
 
 // Set sets a value in the db at key
-func (ks *KeyStore) Set(key, value []byte) error {
+func (ks *KeyStore) Set(key types.Key, value []byte) error {
 	if ks.DB == nil {
 		log.Panic(ErrCalledAfterClose)
 	}
@@ -110,7 +110,7 @@ func (ks *KeyStore) Set(key, value []byte) error {
 }
 
 // Delete deletes a value in the db at key
-func (ks *KeyStore) Delete(key []byte) error {
+func (ks *KeyStore) Delete(key types.Key) error {
 	if ks.DB == nil {
 		log.Panic(ErrCalledAfterClose)
 	}

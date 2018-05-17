@@ -2,12 +2,14 @@ package mock
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/figaro-tech/go-figaro/figdb/types"
 )
 
 // KeyStore sets up an in-memory key/value store
 type KeyStore struct {
+	lock    sync.RWMutex
 	DB      map[string]string
 	batch   bool
 	pending types.KeyStoreUpdateBatch
@@ -23,6 +25,9 @@ func NewKeyStore() *KeyStore {
 
 // Get returns a trie value given a trie key
 func (ks *KeyStore) Get(key types.Key) ([]byte, error) {
+	ks.lock.RLock()
+	defer ks.lock.RUnlock()
+
 	v := ks.DB[key.String()]
 	if v == "" {
 		return nil, nil
@@ -32,6 +37,9 @@ func (ks *KeyStore) Get(key types.Key) ([]byte, error) {
 
 // Set updates a trie key with a trie value
 func (ks *KeyStore) Set(key types.Key, value []byte) error {
+	ks.lock.Lock()
+	defer ks.lock.Unlock()
+
 	if value != nil {
 		ks.DB[key.String()] = string(value)
 	}
@@ -40,25 +48,41 @@ func (ks *KeyStore) Set(key types.Key, value []byte) error {
 
 // Delete removes a trie key/value
 func (ks *KeyStore) Delete(key types.Key) error {
+	ks.lock.Lock()
+	defer ks.lock.Unlock()
+
 	delete(ks.DB, key.String())
 	return nil
 }
 
 // Batch causes all writes to be batched until Save() is called
 func (ks *KeyStore) Batch() {
+	ks.lock.Lock()
+	defer ks.lock.Unlock()
+
 	ks.batch = true
 }
 
 // Write avees all pending updates in the batch
 func (ks *KeyStore) Write() error {
+	ks.lock.Lock()
+	defer ks.lock.Unlock()
+
 	ks.batch = false
-	ks.BatchUpdate(ks.pending)
+	ks.batchUpdate(ks.pending)
 	ks.pending = ks.pending[:0]
 	return nil
 }
 
 // BatchUpdate executs multiple set or delets at once
 func (ks *KeyStore) BatchUpdate(updates types.KeyStoreUpdateBatch) error {
+	ks.lock.Lock()
+	defer ks.lock.Unlock()
+
+	return ks.batchUpdate(updates)
+}
+
+func (ks *KeyStore) batchUpdate(updates types.KeyStoreUpdateBatch) error {
 	for _, update := range updates {
 		if update.Value == nil {
 			ks.Delete(update.Key)
@@ -70,6 +94,9 @@ func (ks *KeyStore) BatchUpdate(updates types.KeyStoreUpdateBatch) error {
 }
 
 func (ks *KeyStore) String() string {
+	ks.lock.RLock()
+	defer ks.lock.RUnlock()
+
 	s := ""
 	for k, v := range ks.DB {
 		s += fmt.Sprintf("%#x : %#x\n", k, v)
