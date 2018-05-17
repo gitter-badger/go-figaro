@@ -22,7 +22,7 @@ func ExampleSet_Save() {
 }
 
 func RandomString(n int) string {
-	var letter = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+	var letter = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456000789")
 	b := make([]rune, n)
 	for i := range b {
 		b[i] = letter[rand.Intn(len(letter))]
@@ -32,7 +32,7 @@ func RandomString(n int) string {
 
 func BenchmarkSet_Save(b *testing.B) {
 	bb := set.New(mock.NewKeyStore(), fifo.New(10), 0.01)
-	data := make([][]byte, 65000)
+	data := make([][]byte, 56000)
 	for i := range data {
 		data[i] = []byte(RandomString(5))
 	}
@@ -43,7 +43,7 @@ func BenchmarkSet_Save(b *testing.B) {
 
 func BenchmarkSet_Has(b *testing.B) {
 	bb := set.New(mock.NewKeyStore(), fifo.New(10), 0.01)
-	data := make([][]byte, 65000)
+	data := make([][]byte, 56000)
 	for i := range data {
 		data[i] = []byte(RandomString(5))
 	}
@@ -55,7 +55,7 @@ func BenchmarkSet_Has(b *testing.B) {
 
 func BenchmarkSet_HasBatch(b *testing.B) {
 	bb := set.New(mock.NewKeyStore(), fifo.New(10), 0.01)
-	data := make([][]byte, 65000)
+	data := make([][]byte, 56000)
 	for i := range data {
 		data[i] = []byte(RandomString(5))
 	}
@@ -67,7 +67,7 @@ func BenchmarkSet_HasBatch(b *testing.B) {
 
 func BenchmarkSet_Get_and_test(b *testing.B) {
 	bb := set.New(mock.NewKeyStore(), fifo.New(10), 0.01)
-	data := make([][]byte, 65000)
+	data := make([][]byte, 56000)
 	for i := range data {
 		data[i] = []byte(RandomString(5))
 	}

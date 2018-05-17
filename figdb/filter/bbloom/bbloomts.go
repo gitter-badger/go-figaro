@@ -26,9 +26,9 @@ func NewTSWithEstimates(n uint64, fp float64) *BloomTS {
 	return &BloomTS{Bloom: *bf}
 }
 
-// NewTSWithBitset takes a []byte slice and number of locs per entry
-// returns the bloomfilter with a bitset populated according to the input []byte
-func NewTSWithBitset(bs []byte, locs uint64) *BloomTS {
+// NewTSWithBitset takes a []uint64 slice and number of locs per entry
+// returns the bloomfilter with a bitset populated according to the input
+func NewTSWithBitset(bs []uint64, locs uint64) *BloomTS {
 	bf := NewWithBitset(bs, locs)
 	return &BloomTS{Bloom: *bf}
 }

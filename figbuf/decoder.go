@@ -41,6 +41,7 @@ type Decoder struct {
 	lenOfListLen uint
 	listLen      uint
 	zeros        [8]byte
+	buf          [8]byte
 }
 
 // Decode decodes an item or list of items
@@ -635,8 +636,8 @@ type RlpItem struct {
 	Typ    RlpType
 }
 
-// NextItem gets the next RlpItem from the list
-func (dec *Decoder) NextItem(b []byte) RlpItem {
+// nextItem gets the next RlpItem from the list
+func (dec *Decoder) nextItem(b []byte) RlpItem {
 	dec.length = uint(len(b))
 	if dec.length == 0 {
 		return RlpItem{0, 0, 0}
@@ -649,18 +650,18 @@ func (dec *Decoder) NextItem(b []byte) RlpItem {
 		dec.strLen = dec.prefix - 0x80
 		return RlpItem{1, dec.strLen, RlpStr}
 	}
-	if dec.prefix <= 0xbf && dec.length > dec.prefix-0xb7 && dec.length > dec.prefix-0xb7+dec.BytesToUint(dec.Substr(b, 1, dec.prefix-0xb7)) {
+	if dec.prefix <= 0xbf && dec.length > dec.prefix-0xb7 && dec.length > dec.prefix-0xb7+dec.BytesToUint(dec.substr(b, 1, dec.prefix-0xb7)) {
 		dec.lenOfStrLen = dec.prefix - 0xb7
-		dec.strLen = dec.BytesToUint(dec.Substr(b, 1, dec.lenOfStrLen))
+		dec.strLen = dec.BytesToUint(dec.substr(b, 1, dec.lenOfStrLen))
 		return RlpItem{1 + dec.lenOfStrLen, dec.strLen, RlpStr}
 	}
 	if dec.prefix <= 0xf7 && dec.length > dec.prefix-0xc0 {
 		dec.listLen = dec.prefix - 0xc0
 		return RlpItem{1, dec.listLen, RlpList}
 	}
-	if dec.prefix <= 0xff && dec.length > dec.prefix-0xf7 && dec.length > dec.prefix-0xf7+dec.BytesToUint(dec.Substr(b, 1, dec.prefix-0xf7)) {
+	if dec.prefix <= 0xff && dec.length > dec.prefix-0xf7 && dec.length > dec.prefix-0xf7+dec.BytesToUint(dec.substr(b, 1, dec.prefix-0xf7)) {
 		dec.lenOfListLen = dec.prefix - 0xf7
-		dec.listLen = dec.BytesToUint(dec.Substr(b, 1, dec.lenOfListLen))
+		dec.listLen = dec.BytesToUint(dec.substr(b, 1, dec.lenOfListLen))
 		return RlpItem{1 + dec.lenOfListLen, dec.listLen, RlpList}
 	}
 	panic(ErrInvalidData)
@@ -668,12 +669,12 @@ func (dec *Decoder) NextItem(b []byte) RlpItem {
 
 // DecodeNextList gets the next list
 func (dec *Decoder) DecodeNextList(b []byte, builder func([]byte)) []byte {
-	item := dec.NextItem(b)
+	item := dec.nextItem(b)
 	if item.Typ != RlpList {
 		panic(ErrInvalidData)
 	}
 	r := b[item.Offset+item.Len:]
-	builder(dec.Substr(b, item.Offset, item.Len))
+	builder(dec.substr(b, item.Offset, item.Len))
 	return r
 }
 
@@ -682,12 +683,12 @@ func (dec *Decoder) DecodeNextList(b []byte, builder func([]byte)) []byte {
 // Note that the slice returned may use the same
 // backing array as `b` for performance
 func (dec *Decoder) DecodeNextBytes(b []byte) (d []byte, r []byte) {
-	item := dec.NextItem(b)
+	item := dec.nextItem(b)
 	if item.Typ != RlpStr {
 		panic(ErrInvalidData)
 	}
 	r = b[item.Offset+item.Len:]
-	d = dec.Substr(b, item.Offset, item.Len)
+	d = dec.substr(b, item.Offset, item.Len)
 	return
 }
 
@@ -699,403 +700,264 @@ func (dec *Decoder) DecodeNextBytesSlice(bb []byte) (dd [][]byte, r []byte) {
 	// 17 is the size of a merkle node, which is
 	// the most common use case for a bytes slice
 	dd = dec.getByteSlice17()
-	item := dec.NextItem(bb)
-	if item.Typ != RlpList {
-		panic(ErrInvalidData)
-	}
-	r = bb[item.Offset+item.Len:]
-	b := dec.Substr(bb, item.Offset, item.Len)
-	for {
-		item = dec.NextItem(b)
-		if item.Typ == 0 {
-			break
-		}
-		if item.Typ != RlpStr {
-			panic(ErrInvalidData)
-		}
-		dd = append(dd, dec.Substr(b, item.Offset, item.Len))
-		b = b[item.Offset+item.Len:]
-	}
+	r = dec.decodeListHelper(bb, func(buf []byte) {
+		dd = append(dd, buf)
+	})
 	return
 }
 
 // DecodeNextString decodes
 func (dec *Decoder) DecodeNextString(b []byte) (d string, r []byte) {
-	item := dec.NextItem(b)
+	item := dec.nextItem(b)
 	if item.Typ != RlpStr {
 		panic(ErrInvalidData)
 	}
 	r = b[item.Offset+item.Len:]
-	d = dec.BytesToString(dec.Substr(b, item.Offset, item.Len))
+	d = dec.BytesToString(dec.substr(b, item.Offset, item.Len))
 	return
 }
 
 // DecodeNextBool decodes
 func (dec *Decoder) DecodeNextBool(b []byte) (d bool, r []byte) {
-	item := dec.NextItem(b)
+	item := dec.nextItem(b)
 	if item.Typ != RlpStr {
 		panic(ErrInvalidData)
 	}
 	r = b[item.Offset+item.Len:]
-	d = dec.BytesToBool(dec.Substr(b, item.Offset, item.Len))
+	d = dec.BytesToBool(dec.substr(b, item.Offset, item.Len))
 	return
 }
 
 // DecodeNextInt decodes
 func (dec *Decoder) DecodeNextInt(b []byte) (d int, r []byte) {
-	item := dec.NextItem(b)
+	item := dec.nextItem(b)
 	if item.Typ != RlpStr {
 		panic(ErrInvalidData)
 	}
 	r = b[item.Offset+item.Len:]
-	d = dec.BytesToInt(dec.Substr(b, item.Offset, item.Len))
+	d = dec.BytesToInt(dec.substr(b, item.Offset, item.Len))
 	return
 }
 
 // DecodeNextInt8 decodes
 func (dec *Decoder) DecodeNextInt8(b []byte) (d int8, r []byte) {
-	item := dec.NextItem(b)
+	item := dec.nextItem(b)
 	if item.Typ != RlpStr {
 		panic(ErrInvalidData)
 	}
 	r = b[item.Offset+item.Len:]
-	d = dec.BytesToInt8(dec.Substr(b, item.Offset, item.Len))
+	d = dec.BytesToInt8(dec.substr(b, item.Offset, item.Len))
 	return
 }
 
 // DecodeNextInt16 decodes
 func (dec *Decoder) DecodeNextInt16(b []byte) (d int16, r []byte) {
-	item := dec.NextItem(b)
+	item := dec.nextItem(b)
 	if item.Typ != RlpStr {
 		panic(ErrInvalidData)
 	}
 	r = b[item.Offset+item.Len:]
-	d = dec.BytesToInt16(dec.Substr(b, item.Offset, item.Len))
+	d = dec.BytesToInt16(dec.substr(b, item.Offset, item.Len))
 	return
 }
 
 // DecodeNextInt32 decodes
 func (dec *Decoder) DecodeNextInt32(b []byte) (d int32, r []byte) {
-	item := dec.NextItem(b)
+	item := dec.nextItem(b)
 	if item.Typ != RlpStr {
 		panic(ErrInvalidData)
 	}
 	r = b[item.Offset+item.Len:]
-	d = dec.BytesToInt32(dec.Substr(b, item.Offset, item.Len))
+	d = dec.BytesToInt32(dec.substr(b, item.Offset, item.Len))
 	return
 }
 
 // DecodeNextInt64 decodes
 func (dec *Decoder) DecodeNextInt64(b []byte) (d int64, r []byte) {
-	item := dec.NextItem(b)
+	item := dec.nextItem(b)
 	if item.Typ != RlpStr {
 		panic(ErrInvalidData)
 	}
 	r = b[item.Offset+item.Len:]
-	d = dec.BytesToInt64(dec.Substr(b, item.Offset, item.Len))
+	d = dec.BytesToInt64(dec.substr(b, item.Offset, item.Len))
 	return
 }
 
 // DecodeNextUint decodes
 func (dec *Decoder) DecodeNextUint(b []byte) (d uint, r []byte) {
-	item := dec.NextItem(b)
+	item := dec.nextItem(b)
 	if item.Typ != RlpStr {
 		panic(ErrInvalidData)
 	}
 	r = b[item.Offset+item.Len:]
-	d = dec.BytesToUint(dec.Substr(b, item.Offset, item.Len))
+	d = dec.BytesToUint(dec.substr(b, item.Offset, item.Len))
 	return
 }
 
 // DecodeNextUint8 decodes
 func (dec *Decoder) DecodeNextUint8(b []byte) (d uint8, r []byte) {
-	item := dec.NextItem(b)
+	item := dec.nextItem(b)
 	if item.Typ != RlpStr {
 		panic(ErrInvalidData)
 	}
 	r = b[item.Offset+item.Len:]
-	d = dec.BytesToUint8(dec.Substr(b, item.Offset, item.Len))
+	d = dec.BytesToUint8(dec.substr(b, item.Offset, item.Len))
 	return
 }
 
 // DecodeNextUint16 decodes
 func (dec *Decoder) DecodeNextUint16(b []byte) (d uint16, r []byte) {
-	item := dec.NextItem(b)
+	item := dec.nextItem(b)
 	if item.Typ != RlpStr {
 		panic(ErrInvalidData)
 	}
 	r = b[item.Offset+item.Len:]
-	d = dec.BytesToUint16(dec.Substr(b, item.Offset, item.Len))
+	d = dec.BytesToUint16(dec.substr(b, item.Offset, item.Len))
 	return
 }
 
 // DecodeNextUint32 decodes
 func (dec *Decoder) DecodeNextUint32(b []byte) (d uint32, r []byte) {
-	item := dec.NextItem(b)
+	item := dec.nextItem(b)
 	if item.Typ != RlpStr {
 		panic(ErrInvalidData)
 	}
 	r = b[item.Offset+item.Len:]
-	d = dec.BytesToUint32(dec.Substr(b, item.Offset, item.Len))
+	d = dec.BytesToUint32(dec.substr(b, item.Offset, item.Len))
 	return
 }
 
 // DecodeNextUint64 decodes
 func (dec *Decoder) DecodeNextUint64(b []byte) (d uint64, r []byte) {
-	item := dec.NextItem(b)
+	item := dec.nextItem(b)
 	if item.Typ != RlpStr {
 		panic(ErrInvalidData)
 	}
 	r = b[item.Offset+item.Len:]
-	d = dec.BytesToUint64(dec.Substr(b, item.Offset, item.Len))
+	d = dec.BytesToUint64(dec.substr(b, item.Offset, item.Len))
 	return
 }
 
 // DecodeNextStringSlice decodes
 func (dec *Decoder) DecodeNextStringSlice(bb []byte) (dd []string, r []byte) {
 	dd = make([]string, 0, 8)
-	item := dec.NextItem(bb)
-	if item.Typ != RlpList {
-		panic(ErrInvalidData)
-	}
-	r = bb[item.Offset+item.Len:]
-	b := dec.Substr(bb, item.Offset, item.Len)
-	for {
-		item = dec.NextItem(b)
-		if item.Typ == 0 {
-			break
-		}
-		if item.Typ != RlpStr {
-			panic(ErrInvalidData)
-		}
-		dd = append(dd, dec.BytesToString(dec.Substr(b, item.Offset, item.Len)))
-		b = b[item.Offset+item.Len:]
-	}
+	r = dec.decodeListHelper(bb, func(buf []byte) {
+		dd = append(dd, dec.BytesToString(buf))
+	})
+	return
+}
+
+// DecodeNextBoolSlice decodes
+func (dec *Decoder) DecodeNextBoolSlice(bb []byte) (dd []bool, r []byte) {
+	dd = make([]bool, 0, 8)
+	r = dec.decodeListHelper(bb, func(buf []byte) {
+		dd = append(dd, dec.BytesToBool(buf))
+	})
 	return
 }
 
 // DecodeNextIntSlice decodes
 func (dec *Decoder) DecodeNextIntSlice(bb []byte) (dd []int, r []byte) {
 	dd = make([]int, 0, 8)
-	item := dec.NextItem(bb)
-	if item.Typ != RlpList {
-		panic(ErrInvalidData)
-	}
-	r = bb[item.Offset+item.Len:]
-	b := dec.Substr(bb, item.Offset, item.Len)
-	for {
-		item = dec.NextItem(b)
-		if item.Typ == 0 {
-			break
-		}
-		if item.Typ != RlpStr {
-			panic(ErrInvalidData)
-		}
-		dd = append(dd, dec.BytesToInt(dec.Substr(b, item.Offset, item.Len)))
-		b = b[item.Offset+item.Len:]
-	}
+	r = dec.decodeListHelper(bb, func(buf []byte) {
+		dd = append(dd, dec.BytesToInt(buf))
+	})
 	return
 }
 
 // DecodeNextInt8Slice decodes
 func (dec *Decoder) DecodeNextInt8Slice(bb []byte) (dd []int8, r []byte) {
 	dd = make([]int8, 0, 8)
-	item := dec.NextItem(bb)
-	if item.Typ != RlpList {
-		panic(ErrInvalidData)
-	}
-	r = bb[item.Offset+item.Len:]
-	b := dec.Substr(bb, item.Offset, item.Len)
-	for {
-		item = dec.NextItem(b)
-		if item.Typ == 0 {
-			break
-		}
-		if item.Typ != RlpStr {
-			panic(ErrInvalidData)
-		}
-		dd = append(dd, dec.BytesToInt8(dec.Substr(b, item.Offset, item.Len)))
-		b = b[item.Offset+item.Len:]
-	}
+	r = dec.decodeListHelper(bb, func(buf []byte) {
+		dd = append(dd, dec.BytesToInt8(buf))
+	})
 	return
 }
 
 // DecodeNextInt16Slice decodes
 func (dec *Decoder) DecodeNextInt16Slice(bb []byte) (dd []int16, r []byte) {
 	dd = make([]int16, 0, 8)
-	item := dec.NextItem(bb)
-	if item.Typ != RlpList {
-		panic(ErrInvalidData)
-	}
-	r = bb[item.Offset+item.Len:]
-	b := dec.Substr(bb, item.Offset, item.Len)
-	for {
-		item = dec.NextItem(b)
-		if item.Typ == 0 {
-			break
-		}
-		if item.Typ != RlpStr {
-			panic(ErrInvalidData)
-		}
-		dd = append(dd, dec.BytesToInt16(dec.Substr(b, item.Offset, item.Len)))
-		b = b[item.Offset+item.Len:]
-	}
+	r = dec.decodeListHelper(bb, func(buf []byte) {
+		dd = append(dd, dec.BytesToInt16(buf))
+	})
 	return
 }
 
 // DecodeNextInt32Slice decodes
 func (dec *Decoder) DecodeNextInt32Slice(bb []byte) (dd []int32, r []byte) {
 	dd = make([]int32, 0, 8)
-	item := dec.NextItem(bb)
-	if item.Typ != RlpList {
-		panic(ErrInvalidData)
-	}
-	r = bb[item.Offset+item.Len:]
-	b := dec.Substr(bb, item.Offset, item.Len)
-	for {
-		item = dec.NextItem(b)
-		if item.Typ == 0 {
-			break
-		}
-		if item.Typ != RlpStr {
-			panic(ErrInvalidData)
-		}
-		dd = append(dd, dec.BytesToInt32(dec.Substr(b, item.Offset, item.Len)))
-		b = b[item.Offset+item.Len:]
-	}
+	r = dec.decodeListHelper(bb, func(buf []byte) {
+		dd = append(dd, dec.BytesToInt32(buf))
+	})
 	return
 }
 
 // DecodeNextInt64Slice decodes
 func (dec *Decoder) DecodeNextInt64Slice(bb []byte) (dd []int64, r []byte) {
 	dd = make([]int64, 0, 8)
-	item := dec.NextItem(bb)
-	if item.Typ != RlpList {
-		panic(ErrInvalidData)
-	}
-	r = bb[item.Offset+item.Len:]
-	b := dec.Substr(bb, item.Offset, item.Len)
-	for {
-		item = dec.NextItem(b)
-		if item.Typ == 0 {
-			break
-		}
-		dd = append(dd, dec.BytesToInt64(dec.Substr(b, item.Offset, item.Len)))
-		b = b[item.Offset+item.Len:]
-	}
+	r = dec.decodeListHelper(bb, func(buf []byte) {
+		dd = append(dd, dec.BytesToInt64(buf))
+	})
 	return
 }
 
 // DecodeNextUintSlice decodes
 func (dec *Decoder) DecodeNextUintSlice(bb []byte) (dd []uint, r []byte) {
 	dd = make([]uint, 0, 8)
-	item := dec.NextItem(bb)
-	if item.Typ != RlpList {
-		panic(ErrInvalidData)
-	}
-	r = bb[item.Offset+item.Len:]
-	b := dec.Substr(bb, item.Offset, item.Len)
-	for {
-		item = dec.NextItem(b)
-		if item.Typ == 0 {
-			break
-		}
-		if item.Typ != RlpStr {
-			panic(ErrInvalidData)
-		}
-		dd = append(dd, dec.BytesToUint(dec.Substr(b, item.Offset, item.Len)))
-		b = b[item.Offset+item.Len:]
-	}
+	r = dec.decodeListHelper(bb, func(buf []byte) {
+		dd = append(dd, dec.BytesToUint(buf))
+	})
 	return
 }
 
 // DecodeNextUint8Slice decodes
 func (dec *Decoder) DecodeNextUint8Slice(bb []byte) (dd []uint8, r []byte) {
-	dd = make([]uint8, 0, 8)
-	item := dec.NextItem(bb)
-	if item.Typ != RlpList {
-		panic(ErrInvalidData)
-	}
-	r = bb[item.Offset+item.Len:]
-	b := dec.Substr(bb, item.Offset, item.Len)
-	for {
-		item = dec.NextItem(b)
-		if item.Typ == 0 {
-			break
-		}
-		if item.Typ != RlpStr {
-			panic(ErrInvalidData)
-		}
-		dd = append(dd, dec.BytesToUint8(dec.Substr(b, item.Offset, item.Len)))
-		b = b[item.Offset+item.Len:]
-	}
-	return
+	return dec.DecodeNextBytes(bb)
 }
 
 // DecodeNextUint16Slice decodes
 func (dec *Decoder) DecodeNextUint16Slice(bb []byte) (dd []uint16, r []byte) {
 	dd = make([]uint16, 0, 8)
-	item := dec.NextItem(bb)
-	if item.Typ != RlpList {
-		panic(ErrInvalidData)
-	}
-	r = bb[item.Offset+item.Len:]
-	b := dec.Substr(bb, item.Offset, item.Len)
-	for {
-		item = dec.NextItem(b)
-		if item.Typ == 0 {
-			break
-		}
-		if item.Typ != RlpStr {
-			panic(ErrInvalidData)
-		}
-		dd = append(dd, dec.BytesToUint16(dec.Substr(b, item.Offset, item.Len)))
-		b = b[item.Offset+item.Len:]
-	}
+	r = dec.decodeListHelper(bb, func(buf []byte) {
+		dd = append(dd, dec.BytesToUint16(buf))
+	})
 	return
 }
 
 // DecodeNextUint32Slice decodes
 func (dec *Decoder) DecodeNextUint32Slice(bb []byte) (dd []uint32, r []byte) {
 	dd = make([]uint32, 0, 8)
-	item := dec.NextItem(bb)
-	if item.Typ != RlpList {
-		panic(ErrInvalidData)
-	}
-	r = bb[item.Offset+item.Len:]
-	b := dec.Substr(bb, item.Offset, item.Len)
-	for {
-		item = dec.NextItem(b)
-		if item.Typ == 0 {
-			break
-		}
-		if item.Typ != RlpStr {
-			panic(ErrInvalidData)
-		}
-		dd = append(dd, dec.BytesToUint32(dec.Substr(b, item.Offset, item.Len)))
-		b = b[item.Offset+item.Len:]
-	}
+	r = dec.decodeListHelper(bb, func(buf []byte) {
+		dd = append(dd, dec.BytesToUint32(buf))
+	})
 	return
 }
 
 // DecodeNextUint64Slice decodes
 func (dec *Decoder) DecodeNextUint64Slice(bb []byte) (dd []uint64, r []byte) {
 	dd = make([]uint64, 0, 8)
-	item := dec.NextItem(bb)
+	r = dec.decodeListHelper(bb, func(buf []byte) {
+		dd = append(dd, dec.BytesToUint64(buf))
+	})
+	return
+}
+
+func (dec *Decoder) decodeListHelper(bb []byte, iter func(buf []byte)) (r []byte) {
+	item := dec.nextItem(bb)
 	if item.Typ != RlpList {
 		panic(ErrInvalidData)
 	}
 	r = bb[item.Offset+item.Len:]
-	b := dec.Substr(bb, item.Offset, item.Len)
+	b := dec.substr(bb, item.Offset, item.Len)
 	for {
-		item = dec.NextItem(b)
+		item = dec.nextItem(b)
 		if item.Typ == 0 {
 			break
 		}
 		if item.Typ != RlpStr {
 			panic(ErrInvalidData)
 		}
-		dd = append(dd, dec.BytesToUint64(dec.Substr(b, item.Offset, item.Len)))
+		iter(dec.substr(b, item.Offset, item.Len))
 		b = b[item.Offset+item.Len:]
 	}
 	return
@@ -1103,12 +965,12 @@ func (dec *Decoder) DecodeNextUint64Slice(bb []byte) (dd []uint64, r []byte) {
 
 // DecodeNextBinaryUnmarshaler decodes
 func (dec *Decoder) DecodeNextBinaryUnmarshaler(b []byte, dest encoding.BinaryUnmarshaler) (r []byte) {
-	item := dec.NextItem(b)
+	item := dec.nextItem(b)
 	if item.Typ != RlpStr {
 		panic(ErrInvalidData)
 	}
 	r = b[item.Offset+item.Len:]
-	err := dest.UnmarshalBinary(dec.Substr(b, item.Offset, item.Len))
+	err := dest.UnmarshalBinary(dec.substr(b, item.Offset, item.Len))
 	if err != nil {
 		panic(err)
 	}
@@ -1117,20 +979,19 @@ func (dec *Decoder) DecodeNextBinaryUnmarshaler(b []byte, dest encoding.BinaryUn
 
 // DecodeNextTextUnmarshaler decodes
 func (dec *Decoder) DecodeNextTextUnmarshaler(b []byte, dest encoding.TextUnmarshaler) (r []byte) {
-	item := dec.NextItem(b)
+	item := dec.nextItem(b)
 	if item.Typ != RlpStr {
 		panic(ErrInvalidData)
 	}
 	r = b[item.Offset+item.Len:]
-	err := dest.UnmarshalText(dec.Substr(b, item.Offset, item.Len))
+	err := dest.UnmarshalText(dec.substr(b, item.Offset, item.Len))
 	if err != nil {
 		panic(err)
 	}
 	return
 }
 
-// Substr is a helper for getting dec.Substrings of []byte
-func (dec *Decoder) Substr(b []byte, offset, length uint) []byte {
+func (dec *Decoder) substr(b []byte, offset, length uint) []byte {
 	if offset > uint(len(b)) {
 		return b[len(b):]
 	}
@@ -1206,8 +1067,10 @@ func (dec *Decoder) BytesToInt64(b []byte) int64 {
 
 // BytesToUint converts
 func (dec *Decoder) BytesToUint(b []byte) uint {
-	b = append(dec.zeros[:8-len(b)], b...)
-	return uint(binary.BigEndian.Uint64(b))
+	c := dec.buf[:]
+	copy(c[:8-len(b)], dec.zeros[:8-len(b)])
+	copy(c[8-len(b):], b)
+	return uint(binary.BigEndian.Uint64(c))
 }
 
 // BytesToUint8 converts
@@ -1220,20 +1083,26 @@ func (dec *Decoder) BytesToUint8(b []byte) uint8 {
 
 // BytesToUint16 converts
 func (dec *Decoder) BytesToUint16(b []byte) uint16 {
-	b = append(dec.zeros[:2-len(b)], b...)
-	return binary.BigEndian.Uint16(b)
+	c := dec.buf[:0]
+	c = append(c, dec.zeros[:2-len(b)]...)
+	c = append(c, b...)
+	return binary.BigEndian.Uint16(c)
 }
 
 // BytesToUint32 converts
 func (dec *Decoder) BytesToUint32(b []byte) uint32 {
-	b = append(dec.zeros[:4-len(b)], b...)
-	return binary.BigEndian.Uint32(b)
+	c := dec.buf[:0]
+	c = append(c, dec.zeros[:4-len(b)]...)
+	c = append(c, b...)
+	return binary.BigEndian.Uint32(c)
 }
 
 // BytesToUint64 converts
 func (dec *Decoder) BytesToUint64(b []byte) uint64 {
-	b = append(dec.zeros[:8-len(b)], b...)
-	return binary.BigEndian.Uint64(b)
+	c := dec.buf[:0]
+	c = append(c, dec.zeros[:8-len(b)]...)
+	c = append(c, b...)
+	return binary.BigEndian.Uint64(c)
 }
 
 func (dec *Decoder) getByteSlice17() [][]byte {

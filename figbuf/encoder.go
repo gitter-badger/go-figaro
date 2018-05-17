@@ -343,65 +343,82 @@ func (enc *Encoder) EncodeNextUint64(buf []byte, d uint64) []byte {
 
 // EncodeNextStringSlice RLP encodes
 func (enc *Encoder) EncodeNextStringSlice(buf []byte, dd []string) []byte {
-	bb := enc.lbuf[:0]
-	for _, d := range dd {
-		bb = append(bb, enc.StringToBytes(d))
-	}
-	return enc.encodeRLPList(buf, bb)
+	return enc.encodeListHelper(buf, func(buf []byte) []byte {
+		for _, d := range dd {
+			buf = enc.EncodeNextString(buf, d)
+		}
+		return buf
+	})
+}
+
+// EncodeNextBoolSlice RLP encodes
+func (enc *Encoder) EncodeNextBoolSlice(buf []byte, dd []bool) []byte {
+	return enc.encodeListHelper(buf, func(buf []byte) []byte {
+		for _, d := range dd {
+			buf = enc.EncodeNextBool(buf, d)
+		}
+		return buf
+	})
 }
 
 // EncodeNextIntSlice RLP encodes
 func (enc *Encoder) EncodeNextIntSlice(buf []byte, dd []int) []byte {
-	bb := enc.lbuf[:0]
-	for _, d := range dd {
-		bb = append(bb, enc.IntToBytes(d))
-	}
-	return enc.encodeRLPList(buf, bb)
+	return enc.encodeListHelper(buf, func(buf []byte) []byte {
+		for _, d := range dd {
+			buf = enc.EncodeNextInt(buf, d)
+		}
+		return buf
+	})
 }
 
 // EncodeNextInt8Slice RLP encodes
 func (enc *Encoder) EncodeNextInt8Slice(buf []byte, dd []int8) []byte {
-	bb := enc.lbuf[:0]
-	for _, d := range dd {
-		bb = append(bb, enc.Int8ToBytes(d))
-	}
-	return enc.encodeRLPList(buf, bb)
+	return enc.encodeListHelper(buf, func(buf []byte) []byte {
+		for _, d := range dd {
+			buf = enc.EncodeNextInt8(buf, d)
+		}
+		return buf
+	})
 }
 
 // EncodeNextInt16Slice RLP encodes
 func (enc *Encoder) EncodeNextInt16Slice(buf []byte, dd []int16) []byte {
-	bb := enc.lbuf[:0]
-	for _, d := range dd {
-		bb = append(bb, enc.Int16ToBytes(d))
-	}
-	return enc.encodeRLPList(buf, bb)
+	return enc.encodeListHelper(buf, func(buf []byte) []byte {
+		for _, d := range dd {
+			buf = enc.EncodeNextInt16(buf, d)
+		}
+		return buf
+	})
 }
 
 // EncodeNextInt32Slice RLP encodes
 func (enc *Encoder) EncodeNextInt32Slice(buf []byte, dd []int32) []byte {
-	bb := enc.lbuf[:0]
-	for _, d := range dd {
-		bb = append(bb, enc.Int32ToBytes(d))
-	}
-	return enc.encodeRLPList(buf, bb)
+	return enc.encodeListHelper(buf, func(buf []byte) []byte {
+		for _, d := range dd {
+			buf = enc.EncodeNextInt32(buf, d)
+		}
+		return buf
+	})
 }
 
 // EncodeNextInt64Slice RLP encodes
 func (enc *Encoder) EncodeNextInt64Slice(buf []byte, dd []int64) []byte {
-	bb := enc.lbuf[:0]
-	for _, d := range dd {
-		bb = append(bb, enc.Int64ToBytes(d))
-	}
-	return enc.encodeRLPList(buf, bb)
+	return enc.encodeListHelper(buf, func(buf []byte) []byte {
+		for _, d := range dd {
+			buf = enc.EncodeNextInt64(buf, d)
+		}
+		return buf
+	})
 }
 
 // EncodeNextUintSlice RLP encodes
 func (enc *Encoder) EncodeNextUintSlice(buf []byte, dd []uint) []byte {
-	bb := enc.lbuf[:0]
-	for _, d := range dd {
-		bb = append(bb, enc.UintToBytes(d))
-	}
-	return enc.encodeRLPList(buf, bb)
+	return enc.encodeListHelper(buf, func(buf []byte) []byte {
+		for _, d := range dd {
+			buf = enc.EncodeNextUint(buf, d)
+		}
+		return buf
+	})
 }
 
 // EncodeNextUint8Slice RLP encodes
@@ -411,29 +428,32 @@ func (enc *Encoder) EncodeNextUint8Slice(buf []byte, dd []uint8) []byte {
 
 // EncodeNextUint16Slice RLP encodes
 func (enc *Encoder) EncodeNextUint16Slice(buf []byte, dd []uint16) []byte {
-	bb := enc.lbuf[:0]
-	for _, d := range dd {
-		bb = append(bb, enc.Uint16ToBytes(d))
-	}
-	return enc.encodeRLPList(buf, bb)
+	return enc.encodeListHelper(buf, func(buf []byte) []byte {
+		for _, d := range dd {
+			buf = enc.EncodeNextUint16(buf, d)
+		}
+		return buf
+	})
 }
 
 // EncodeNextUint32Slice RLP encodes
 func (enc *Encoder) EncodeNextUint32Slice(buf []byte, dd []uint32) []byte {
-	bb := enc.lbuf[:0]
-	for _, d := range dd {
-		bb = append(bb, enc.Uint32ToBytes(d))
-	}
-	return enc.encodeRLPList(buf, bb)
+	return enc.encodeListHelper(buf, func(buf []byte) []byte {
+		for _, d := range dd {
+			buf = enc.EncodeNextUint32(buf, d)
+		}
+		return buf
+	})
 }
 
 // EncodeNextUint64Slice RLP encodes
 func (enc *Encoder) EncodeNextUint64Slice(buf []byte, dd []uint64) []byte {
-	bb := enc.lbuf[:0]
-	for _, d := range dd {
-		bb = append(bb, enc.Uint64ToBytes(d))
-	}
-	return enc.encodeRLPList(buf, bb)
+	return enc.encodeListHelper(buf, func(buf []byte) []byte {
+		for _, d := range dd {
+			buf = enc.EncodeNextUint64(buf, d)
+		}
+		return buf
+	})
 }
 
 // EncodeNextBinaryMarshaler RLP encodes
@@ -572,7 +592,7 @@ func (enc *Encoder) Uint64ToBytes(d uint64) []byte {
 	}
 	b := enc.buf8[:]
 	binary.BigEndian.PutUint64(b, uint64(d))
-	bl := binaryLen(uint(d))
+	bl := binaryLen64(uint(d))
 	return b[len(b)-int(bl):]
 }
 
@@ -718,6 +738,33 @@ func binaryLen(u uint) uint {
 	v |= v >> 8
 	v |= v >> 16
 	nbits := tab32[(v*0x07C4ACDD)>>27] + 1
+	if nbits%8 == 0 {
+		return nbits / 8
+	}
+	return nbits/8 + 1
+}
+
+var tab64 = [64]uint{
+	63, 0, 58, 1, 59, 47, 53, 2,
+	60, 39, 48, 27, 54, 33, 42, 3,
+	61, 51, 37, 40, 49, 18, 28, 20,
+	55, 30, 34, 11, 43, 14, 22, 4,
+	62, 57, 46, 52, 38, 26, 32, 41,
+	50, 36, 17, 19, 29, 10, 13, 21,
+	56, 45, 25, 31, 35, 16, 9, 12,
+	44, 24, 15, 8, 23, 7, 6, 5}
+
+func binaryLen64(v uint) uint {
+	if v == 0 {
+		return 0
+	}
+	v |= v >> 1
+	v |= v >> 2
+	v |= v >> 4
+	v |= v >> 8
+	v |= v >> 16
+	v |= v >> 32
+	nbits := tab64[(uint64(v-(v>>1))*0x07EDD5E59A4E28C2)>>58] + 1
 	if nbits%8 == 0 {
 		return nbits / 8
 	}

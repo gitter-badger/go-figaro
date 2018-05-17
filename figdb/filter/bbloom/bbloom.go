@@ -38,7 +38,6 @@ import (
 
 // Bloom filter
 type Bloom struct {
-	elemNum uint64
 	bitset  []uint64
 	sizeExp uint64
 	size    uint64
@@ -68,14 +67,16 @@ func NewWithEstimates(n uint64, fp float64) (bloom *Bloom) {
 	return New(size, locs)
 }
 
-// NewWithBitset takes a []byte slice and number of locs per entry
-// returns the bloomfilter with a bitset populated according to the input []byte
-func NewWithBitset(bs []byte, locs uint64) (bloom *Bloom) {
-	bloom = New(uint64(len(bs)<<3), locs)
-	ptr := uintptr(unsafe.Pointer(&bloom.bitset[0]))
-	for _, b := range bs {
-		*(*uint8)(unsafe.Pointer(ptr)) = b
-		ptr++
+// NewWithBitset takes a []uint64 slice and number of locs per entry
+// returns the bloomfilter with a bitset populated according to the input
+func NewWithBitset(bs []uint64, locs uint64) (bloom *Bloom) {
+	size, exponent := calcSizeAndExponent(uint64(len(bs)))
+	bloom = &Bloom{
+		sizeExp: exponent,
+		size:    size - 1,
+		setLocs: locs,
+		shift:   64 - exponent,
+		bitset:  bs,
 	}
 	return
 }
@@ -96,10 +97,10 @@ func Unmarshal(data []byte) (bloom *Bloom, err error) {
 	defer figbuf.DecoderPool.Put(dec)
 
 	var locs uint64
-	var filterset []byte
+	var filterset []uint64
 	_ = dec.DecodeNextList(data, func(buf []byte) {
 		locs, buf = dec.DecodeNextUint64(buf)
-		filterset, _ = dec.DecodeNextBytes(buf)
+		filterset, _ = dec.DecodeNextUint64Slice(buf)
 	})
 	bloom = NewWithBitset(filterset, locs)
 	return
@@ -110,7 +111,6 @@ func (bl *Bloom) Add(entry []byte) {
 	l, h := hash.SipHash(entry, bl.shift)
 	for i := uint64(0); i < bl.setLocs; i++ {
 		bl.set((h + i*l) & bl.size)
-		bl.elemNum++
 	}
 }
 
@@ -159,17 +159,9 @@ func (bl *Bloom) Marshal() (buf []byte, err error) {
 	enc := figbuf.EncoderPool.Get().(*figbuf.Encoder)
 	defer figbuf.EncoderPool.Put(enc)
 
-	locs := uint64(bl.setLocs)
-	filterset := make([]byte, len(bl.bitset)<<3)
-	ptr := uintptr(unsafe.Pointer(&bl.bitset[0]))
-	for i := range filterset {
-		filterset[i] = *(*byte)(unsafe.Pointer(ptr))
-		ptr++
-	}
-
 	buf = enc.EncodeNextList(nil, func(buf []byte) []byte {
-		buf = enc.EncodeNextUint64(buf, locs)
-		buf = enc.EncodeNextBytes(buf, filterset)
+		buf = enc.EncodeNextUint64(buf, bl.setLocs)
+		buf = enc.EncodeNextUint64Slice(buf, bl.bitset)
 		return buf
 	})
 	return buf, nil
