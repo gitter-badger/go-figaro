@@ -19,9 +19,9 @@ type Set struct {
 	fp       float64
 }
 
-// New returns a Set ready for use, given a key/value store, a target
-// false postive rate, fp, and the number of items to keep in an LRU
-// cache for quick retrieval.
+// New returns a Set ready for use, given a key/value store, a cache
+// use for fast retrieval of recent items, and the target failure
+// percentage, fp
 func New(ks types.KeyStore, cache types.Cache, fp float64) *Set {
 	return &Set{
 		KeyStore: ks,
@@ -34,7 +34,7 @@ func New(ks types.KeyStore, cache types.Cache, fp float64) *Set {
 // it to the key/value store, returning a unique key for querying
 // set membership in the future.
 func (s *Set) Save(data [][]byte) ([]byte, error) {
-	bloom := bbloom.New(float64(len(data)), s.fp)
+	bloom := bbloom.NewWithEstimates(uint64(len(data)), s.fp)
 	for _, datum := range data {
 		bloom.Add(datum)
 	}

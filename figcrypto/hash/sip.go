@@ -8,11 +8,11 @@
 // Package siphash implements SipHash-2-4, a fast short-input PRF
 // created by Jean-Philippe Aumasson and Daniel J. Bernstein.
 
-package bbloom
+package hash
 
-// Hash returns the 64-bit SipHash-2-4 of the given byte slice with two 64-bit
+// SipHash returns the 64-bit SipHash-2-4 of the given byte slice with two 64-bit
 // parts of 128-bit key: k0 and k1.
-func (bl Bloom) sipHash(p []byte) (l, h uint64) {
+func SipHash(p []byte, shift uint64) (l, h uint64) {
 	// Initialization.
 	v0 := uint64(8317987320269560794) // k0 ^ 0x736f6d6570736575
 	v1 := uint64(7237128889637516672) // k1 ^ 0x646f72616e646f6d
@@ -218,8 +218,7 @@ func (bl Bloom) sipHash(p []byte) (l, h uint64) {
 	// return v0 ^ v1 ^ v2 ^ v3
 
 	hash := v0 ^ v1 ^ v2 ^ v3
-	h = hash >> bl.shift
-	l = hash << bl.shift >> bl.shift
+	h = hash >> shift
+	l = hash << shift >> shift
 	return l, h
-
 }
