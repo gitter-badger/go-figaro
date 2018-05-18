@@ -4,6 +4,7 @@ package trie
 import (
 	"bytes"
 	"errors"
+	"sync"
 
 	"github.com/figaro-tech/go-figaro/figbuf"
 	"github.com/figaro-tech/go-figaro/figcrypto/hash"
@@ -18,6 +19,7 @@ var (
 // State implements a Merkle Patricia trie over a DB
 // for data that is updated often
 type State struct {
+	lock     sync.RWMutex
 	KeyStore types.KeyStore
 	Cache    types.Cache
 	branches [32][17][]byte
@@ -70,6 +72,9 @@ func (tr *State) Set(root, key, value []byte) ([]byte, error) {
 	tr.KeyStore.Batch()
 	defer tr.KeyStore.Write()
 
+	tr.lock.Lock()
+	defer tr.lock.Unlock()
+
 	path := nibbles(key)
 	if len(root) == 0 {
 		return tr.setNilRoot(enc, path, value)
@@ -89,6 +94,9 @@ func (tr *State) SetInBatch(root, key, value []byte) ([]byte, error) {
 
 	dec := figbuf.DecoderPool.Get().(*figbuf.Decoder)
 	defer figbuf.DecoderPool.Put(dec)
+
+	tr.lock.Lock()
+	defer tr.lock.Unlock()
 
 	path := nibbles(key)
 	if len(root) == 0 {
@@ -554,6 +562,9 @@ func (tr *State) Get(root, key []byte) ([]byte, error) {
 	dec := figbuf.DecoderPool.Get().(*figbuf.Decoder)
 	defer figbuf.DecoderPool.Put(dec)
 
+	tr.lock.RLock()
+	defer tr.lock.RUnlock()
+
 	if len(root) == 0 {
 		return nil, nil
 	}
@@ -601,6 +612,9 @@ func (tr *State) get(dec *figbuf.Decoder, root []byte, path []uint8) ([]byte, er
 func (tr *State) GetAndProve(root, key []byte) ([]byte, [][][]byte, error) {
 	dec := figbuf.DecoderPool.Get().(*figbuf.Decoder)
 	defer figbuf.DecoderPool.Put(dec)
+
+	tr.lock.RLock()
+	defer tr.lock.RUnlock()
 
 	if len(root) == 0 {
 		return nil, nil, nil
