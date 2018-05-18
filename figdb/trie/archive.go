@@ -17,6 +17,7 @@ var ErrIndexOutOfRange = errors.New("figdb archive: index is out of range for ar
 // for archival of rarely changing data
 type Archive struct {
 	KeyStore types.KeyStore
+	Cache    types.Cache
 }
 
 // Save creates a new entry for the batch of data
@@ -27,6 +28,9 @@ func (tr *Archive) Save(data [][]byte) ([]byte, error) {
 
 	root := trie.Trie(data)
 	value := enc.EncodeBytesSlice(data)
+	if tr.Cache != nil {
+		tr.Cache.Add(root, value)
+	}
 	err := tr.KeyStore.Set(root, value)
 	if err != nil {
 		return nil, err
@@ -38,8 +42,16 @@ func (tr *Archive) Save(data [][]byte) ([]byte, error) {
 func (tr *Archive) Retrieve(root []byte) ([][]byte, error) {
 	dec := figbuf.DecoderPool.Get().(*figbuf.Decoder)
 	defer figbuf.DecoderPool.Put(dec)
-
-	value, err := tr.KeyStore.Get(root)
+	var value []byte
+	var err error
+	if tr.Cache != nil {
+		if c, ok := tr.Cache.Get(root); ok {
+			value = c
+		}
+	}
+	if value == nil {
+		value, err = tr.KeyStore.Get(root)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +71,16 @@ func (tr *Archive) Get(root []byte, index int) ([]byte, error) {
 	dec := figbuf.DecoderPool.Get().(*figbuf.Decoder)
 	defer figbuf.DecoderPool.Put(dec)
 
-	value, err := tr.KeyStore.Get(root)
+	var value []byte
+	var err error
+	if tr.Cache != nil {
+		if c, ok := tr.Cache.Get(root); ok {
+			value = c
+		}
+	}
+	if value == nil {
+		value, err = tr.KeyStore.Get(root)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +102,16 @@ func (tr *Archive) GetAndProve(root []byte, index int) ([]byte, [][]byte, error)
 	dec := figbuf.DecoderPool.Get().(*figbuf.Decoder)
 	defer figbuf.DecoderPool.Put(dec)
 
-	value, err := tr.KeyStore.Get(root)
+	var value []byte
+	var err error
+	if tr.Cache != nil {
+		if c, ok := tr.Cache.Get(root); ok {
+			value = c
+		}
+	}
+	if value == nil {
+		value, err = tr.KeyStore.Get(root)
+	}
 	if err != nil {
 		return nil, nil, err
 	}

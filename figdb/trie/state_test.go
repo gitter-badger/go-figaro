@@ -365,3 +365,31 @@ func BenchmarkState_Set(b *testing.B) {
 		state.Set(root, horse[0], horse[1])
 	}
 }
+
+func BenchmarkState_Get(b *testing.B) {
+	do := [][]byte{[]byte("do"), []byte("verb")}
+	dog := [][]byte{[]byte("dog"), []byte("puppy")}
+	doge := [][]byte{[]byte("doge"), []byte("coin")}
+
+	state := trie.State{
+		KeyStore: mock.NewKeyStore(),
+	}
+	root, err := state.Set(nil, do[0], do[1])
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	root, err = state.Set(root, dog[0], dog[1])
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	root, err = state.Set(root, doge[0], doge[1])
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	for i := 0; i < b.N; i++ {
+		state.Get(root, doge[0])
+	}
+}

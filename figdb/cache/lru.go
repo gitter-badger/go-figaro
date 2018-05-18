@@ -18,40 +18,33 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package fifo implements an FIFO cache with a max size. It's like
-// a LRU, but it only updates eviction policy on Set and not on Get.
-package fifo
+// Package cache implements caches.
+package cache
 
 import (
 	"container/list"
+	"sync"
 
 	"github.com/figaro-tech/go-figaro/figdb/types"
 )
 
-// Cache is an LRU cache. It is not safe for concurrent access.
-type Cache struct {
-	// MaxEntries is the maximum number of cache entries before
-	// an item is evicted. Zero means no limit.
+// LRU is an LRU cache.
+type LRU struct {
+	lock       sync.RWMutex
 	MaxEntries int
-
-	// OnEvicted optionally specificies a callback function to be
-	// executed when an entry is purged from the cache.
-	OnEvicted func(key types.Key, value []byte)
-
-	ll    *list.List
-	cache map[string]*list.Element
+	ll         *list.List
+	cache      map[string]*list.Element
 }
 
 type entry struct {
 	key   types.Key
-	value []byte
+	value string
 }
 
-// New creates a new Cache.
-// If maxEntries is zero, the cache has no limit and it's assumed
-// that eviction is done by the caller.
-func New(maxEntries int) *Cache {
-	return &Cache{
+// NewLRU creates a new LRU. If maxEntries == 0, the cache
+// is disabled and does nothing.
+func NewLRU(maxEntries int) *LRU {
+	return &LRU{
 		MaxEntries: maxEntries,
 		ll:         list.New(),
 		cache:      make(map[string]*list.Element),
@@ -59,36 +52,54 @@ func New(maxEntries int) *Cache {
 }
 
 // Add adds a value to the cache.
-func (c *Cache) Add(key types.Key, value []byte) {
+func (c *LRU) Add(key types.Key, value []byte) {
+	if c.MaxEntries == 0 {
+		return
+	}
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	if c.cache == nil {
 		c.cache = make(map[string]*list.Element)
 		c.ll = list.New()
 	}
 	if ee, ok := c.cache[key.String()]; ok {
 		c.ll.MoveToFront(ee)
-		ee.Value.(*entry).value = value
+		ee.Value.(*entry).value = string(value)
 		return
 	}
-	ele := c.ll.PushFront(&entry{key, value})
+	ele := c.ll.PushFront(&entry{key, string(value)})
 	c.cache[key.String()] = ele
-	if c.MaxEntries != 0 && c.ll.Len() > c.MaxEntries {
+	if c.ll.Len() > c.MaxEntries {
 		c.RemoveOldest()
 	}
 }
 
 // Get looks up a key's value from the cache.
-func (c *Cache) Get(key types.Key) (value []byte, ok bool) {
+func (c *LRU) Get(key types.Key) (value []byte, ok bool) {
+	if c.MaxEntries == 0 {
+		return
+	}
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
 	if c.cache == nil {
 		return
 	}
 	if ele, hit := c.cache[key.String()]; hit {
-		return ele.Value.(*entry).value, true
+		return []byte(ele.Value.(*entry).value), true
 	}
 	return
 }
 
 // Remove removes the provided key from the cache.
-func (c *Cache) Remove(key types.Key) {
+func (c *LRU) Remove(key types.Key) {
+	if c.MaxEntries == 0 {
+		return
+	}
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	if c.cache == nil {
 		return
 	}
@@ -98,7 +109,13 @@ func (c *Cache) Remove(key types.Key) {
 }
 
 // RemoveOldest removes the oldest item from the cache.
-func (c *Cache) RemoveOldest() {
+func (c *LRU) RemoveOldest() {
+	if c.MaxEntries == 0 {
+		return
+	}
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	if c.cache == nil {
 		return
 	}
@@ -108,17 +125,20 @@ func (c *Cache) RemoveOldest() {
 	}
 }
 
-func (c *Cache) removeElement(e *list.Element) {
+func (c *LRU) removeElement(e *list.Element) {
 	c.ll.Remove(e)
 	kv := e.Value.(*entry)
 	delete(c.cache, kv.key.String())
-	if c.OnEvicted != nil {
-		c.OnEvicted(kv.key, kv.value)
-	}
 }
 
 // Len returns the number of items in the cache.
-func (c *Cache) Len() int {
+func (c *LRU) Len() int {
+	if c.MaxEntries == 0 {
+		return 0
+	}
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
 	if c.cache == nil {
 		return 0
 	}
@@ -126,13 +146,14 @@ func (c *Cache) Len() int {
 }
 
 // Clear purges all stored items from the cache.
-func (c *Cache) Clear() {
-	if c.OnEvicted != nil {
-		for _, e := range c.cache {
-			kv := e.Value.(*entry)
-			c.OnEvicted(kv.key, kv.value)
-		}
+func (c *LRU) Clear() {
+	if c.MaxEntries == 0 {
+		return
 	}
+
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	c.ll = nil
 	c.cache = nil
 }

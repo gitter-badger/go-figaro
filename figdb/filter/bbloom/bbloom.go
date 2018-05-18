@@ -126,24 +126,6 @@ func (bl *Bloom) Has(entry []byte) bool {
 	return true
 }
 
-// Clear resets the Bloom filter
-func (bl *Bloom) Clear() {
-	for i := range bl.bitset {
-		bl.bitset[i] = 0
-	}
-}
-
-func (bl *Bloom) set(idx uint64) {
-	ptr := unsafe.Pointer(uintptr(unsafe.Pointer(&bl.bitset[idx>>6])) + uintptr((idx%64)>>3))
-	*(*uint8)(ptr) |= mask[idx%8]
-}
-
-func (bl *Bloom) isSet(idx uint64) bool {
-	ptr := unsafe.Pointer(uintptr(unsafe.Pointer(&bl.bitset[idx>>6])) + uintptr((idx%64)>>3))
-	r := ((*(*uint8)(ptr)) >> (idx % 8)) & 1
-	return r == 1
-}
-
 // Marshal returns figbuf encoded (type bloomImExport) as []byte
 func (bl *Bloom) Marshal() (buf []byte, err error) {
 	defer func() {
@@ -165,6 +147,24 @@ func (bl *Bloom) Marshal() (buf []byte, err error) {
 		return buf
 	})
 	return buf, nil
+}
+
+// Clear resets the Bloom filter
+func (bl *Bloom) Clear() {
+	for i := range bl.bitset {
+		bl.bitset[i] = 0
+	}
+}
+
+func (bl *Bloom) set(idx uint64) {
+	ptr := unsafe.Pointer(uintptr(unsafe.Pointer(&bl.bitset[idx>>6])) + uintptr((idx%64)>>3))
+	*(*uint8)(ptr) |= mask[idx%8]
+}
+
+func (bl *Bloom) isSet(idx uint64) bool {
+	ptr := unsafe.Pointer(uintptr(unsafe.Pointer(&bl.bitset[idx>>6])) + uintptr((idx%64)>>3))
+	r := ((*(*uint8)(ptr)) >> (idx % 8)) & 1
+	return r == 1
 }
 
 // helper

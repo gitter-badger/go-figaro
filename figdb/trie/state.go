@@ -19,6 +19,7 @@ var (
 // for data that is updated often
 type State struct {
 	KeyStore types.KeyStore
+	Cache    types.Cache
 	branches [32][17][]byte
 	nodes    [8][2][]byte
 	brat     int
@@ -538,6 +539,9 @@ func (tr *State) setNode(enc *figbuf.Encoder, node [][]byte) ([]byte, error) {
 		return enc.Copy(v), nil
 	}
 	k := hash.Hash256(node...)
+	if tr.Cache != nil {
+		tr.Cache.Add(k, v)
+	}
 	err := tr.KeyStore.Set(k, v)
 	if err != nil {
 		return nil, err
@@ -663,11 +667,13 @@ func (tr *State) getNode(dec *figbuf.Decoder, k []byte) ([][]byte, error) {
 	}
 	if len(k) < 32 {
 		v = k
-	} else {
-		v, err = tr.KeyStore.Get(k)
-		if err != nil {
-			return nil, err
+	} else if tr.Cache != nil {
+		if c, ok := tr.Cache.Get(k); ok {
+			v = c
 		}
+	}
+	if v == nil {
+		v, err = tr.KeyStore.Get(k)
 	}
 	var node [][]byte
 	node, _, err = dec.DecodeBytesSlice(v)

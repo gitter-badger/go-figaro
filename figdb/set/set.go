@@ -16,25 +16,13 @@ import (
 type Set struct {
 	KeyStore types.KeyStore
 	Cache    types.Cache
-	fp       float64
 }
 
-// New returns a Set ready for use, given a key/value store, a cache
-// use for fast retrieval of recent items, and the target failure
-// percentage, fp
-func New(ks types.KeyStore, cache types.Cache, fp float64) *Set {
-	return &Set{
-		KeyStore: ks,
-		Cache:    cache,
-		fp:       fp,
-	}
-}
-
-// Save creates a bloom filter of the members of data and saves
-// it to the key/value store, returning a unique key for querying
+// Save creates a bloom filter of the members of data with the target
+// false positivate rate, fp, returning a unique key for querying
 // set membership in the future.
-func (s *Set) Save(data [][]byte) ([]byte, error) {
-	bloom := bbloom.NewWithEstimates(uint64(len(data)), s.fp)
+func (s *Set) Save(data [][]byte, fp float64) ([]byte, error) {
+	bloom := bbloom.NewWithEstimates(uint64(len(data)), fp)
 	for _, datum := range data {
 		bloom.Add(datum)
 	}
@@ -43,7 +31,9 @@ func (s *Set) Save(data [][]byte) ([]byte, error) {
 		return nil, err
 	}
 	k := hash.Hash256(v)
-	s.Cache.Add(k, v)
+	if s.Cache != nil {
+		s.Cache.Add(k, v)
+	}
 	s.KeyStore.Set(k, v)
 	return k, nil
 }
@@ -53,9 +43,12 @@ func (s *Set) Save(data [][]byte) ([]byte, error) {
 func (s *Set) Get(key types.Key) (*bbloom.Bloom, error) {
 	var v []byte
 	var err error
-	if c, ok := s.Cache.Get(key); ok {
-		v = c
-	} else {
+	if s.Cache != nil {
+		if c, ok := s.Cache.Get(key); ok {
+			v = c
+		}
+	}
+	if v == nil {
 		v, err = s.KeyStore.Get(key)
 	}
 	if err != nil {
@@ -75,9 +68,12 @@ func (s *Set) Get(key types.Key) (*bbloom.Bloom, error) {
 func (s *Set) Has(key types.Key, datum []byte) bool {
 	var v []byte
 	var err error
-	if c, ok := s.Cache.Get(key); ok {
-		v = c
-	} else {
+	if s.Cache != nil {
+		if c, ok := s.Cache.Get(key); ok {
+			v = c
+		}
+	}
+	if v == nil {
 		v, err = s.KeyStore.Get(key)
 	}
 	if err != nil || len(v) == 0 {
@@ -95,9 +91,12 @@ func (s *Set) Has(key types.Key, datum []byte) bool {
 func (s *Set) HasBatch(key types.Key, data [][]byte) (ins []bool) {
 	var v []byte
 	var err error
-	if c, ok := s.Cache.Get(key); ok {
-		v = c
-	} else {
+	if s.Cache != nil {
+		if c, ok := s.Cache.Get(key); ok {
+			v = c
+		}
+	}
+	if v == nil {
 		v, err = s.KeyStore.Get(key)
 	}
 	if err != nil || len(v) == 0 {
