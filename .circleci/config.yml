@@ -1,0 +1,45 @@
+# Golang CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-go/ for more details
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/golang:1.10
+
+    working_directory: /go/src/github.com/figaro-tech/go-figaro
+
+    environment:
+      APP_FILES: ""
+      APP_PACKAGES: ""
+
+    steps:
+      - checkout
+
+      # Caching is our friend
+      - restore_cache:
+          keys:
+            - v1-pkg-cache
+
+      # Testing Deps
+      - run: go get -u golang.org/x/lint/golint
+      - run: go get -u github.com/client9/misspell/cmd/misspell
+      - run: go get -u github.com/gordonklaus/ineffassign
+      - run: go get -u github.com/fzipp/gocyclo
+
+      # Auxiliary Tests
+      - run: golint -set_exit_status $(go list ./...)
+      - run: ineffassign .
+
+      # Broken/Unreliable Tests
+      # - run: misspell -error $(find . -type f -name '*.go' -not -path './vendor/*')
+      # - run: gocyclo --over 15 $(find . -type f -name '*.go' -not -path './vendor/*')
+      # - run: go vet ./...
+
+      # Unit Tests
+      - run: go test -v ./...
+
+      - save_cache:
+          key: v1-pkg-cache
+          paths:
+            - "/go/pkg"

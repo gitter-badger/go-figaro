@@ -16,7 +16,7 @@ func (db *DB) SetTxCommits(ed figaro.TransactionEncodingService, commits ...figa
 		}
 		encoded[i] = e
 	}
-	return db.Set.Save(encoded)
+	return db.Set.Save(encoded, 0.01)
 }
 
 // HasTxCommits retrieves an archive of commits from a merkle root.

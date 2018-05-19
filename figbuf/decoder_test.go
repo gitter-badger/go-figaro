@@ -77,9 +77,9 @@ func BenchmarkSelfUnmarshalerNext(b *testing.B) {
 	dec := &figbuf.Decoder{}
 	bs := []byte{0xc5, 0x83, 0x42, 0x6f, 0x62, 0x25}
 	for i := 0; i < b.N; i++ {
-		dec.DecodeNextList(bs, func(b []byte) {
-			s.Name, b = dec.DecodeNextString(b)
-			s.Age, b = dec.DecodeNextUint(b)
+		dec.DecodeNextList(bs, func(by []byte) {
+			s.Name, by = dec.DecodeNextString(by)
+			s.Age, _ = dec.DecodeNextUint(by)
 		})
 	}
 }
@@ -195,7 +195,7 @@ func TestDecoder_Decode(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -223,7 +223,7 @@ func TestDecoder_DecodeString(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -254,7 +254,7 @@ func TestDecoder_DecodeBool(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -285,7 +285,7 @@ func TestDecoder_DecodeInt(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -316,7 +316,7 @@ func TestDecoder_DecodeInt8(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -347,7 +347,7 @@ func TestDecoder_DecodeInt16(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -378,7 +378,7 @@ func TestDecoder_DecodeInt32(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -409,7 +409,7 @@ func TestDecoder_DecodeInt64(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -440,7 +440,7 @@ func TestDecoder_DecodeUint(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -471,7 +471,7 @@ func TestDecoder_DecodeUint8(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -502,7 +502,7 @@ func TestDecoder_DecodeUint16(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -533,7 +533,7 @@ func TestDecoder_DecodeUint32(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -564,7 +564,7 @@ func TestDecoder_DecodeUint64(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -595,7 +595,7 @@ func TestDecoder_DecodeStringSlice(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -626,7 +626,7 @@ func TestDecoder_DecodeIntSlice(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -657,7 +657,7 @@ func TestDecoder_DecodeInt8Slice(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -688,7 +688,7 @@ func TestDecoder_DecodeInt16Slice(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -719,7 +719,7 @@ func TestDecoder_DecodeInt32Slice(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -750,7 +750,7 @@ func TestDecoder_DecodeInt64Slice(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -781,7 +781,7 @@ func TestDecoder_DecodeUintSlice(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -812,7 +812,7 @@ func TestDecoder_DecodeUint8Slice(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -843,7 +843,7 @@ func TestDecoder_DecodeUint16Slice(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -874,7 +874,7 @@ func TestDecoder_DecodeUint32Slice(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -905,7 +905,7 @@ func TestDecoder_DecodeUint64Slice(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -936,7 +936,7 @@ func TestDecoder_DecodeBinaryUnmarshaler(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -964,7 +964,7 @@ func TestDecoder_DecodeTextUnmarshaler(t *testing.T) {
 		wantR   []byte
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -991,7 +991,7 @@ func TestDecoder_DecodeNextList(t *testing.T) {
 		args args
 		want []byte
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1013,7 +1013,7 @@ func TestDecoder_DecodeNextBytes(t *testing.T) {
 		wantD []byte
 		wantR []byte
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1039,7 +1039,7 @@ func TestDecoder_DecodeNextBytesSlice(t *testing.T) {
 		wantDd [][]byte
 		wantR  []byte
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1695,7 +1695,7 @@ func TestDecoder_DecodeNextBinaryUnmarshaler(t *testing.T) {
 		args  args
 		wantR []byte
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1717,7 +1717,7 @@ func TestDecoder_DecodeNextTextUnmarshaler(t *testing.T) {
 		args  args
 		wantR []byte
 	}{
-		// TODO: Add test cases.
+	// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

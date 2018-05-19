@@ -712,8 +712,7 @@ func (enc *Encoder) encodeRLPLength(buf []byte, l uint, off uint) []byte {
 	var b []byte
 	if bl+1 > 4 {
 		b = enc.Uint64ToBytes(uint64(l))
-	}
-	if bl+1 > 2 {
+	} else if bl+1 > 2 {
 		b = enc.Uint32ToBytes(uint32(l))
 	} else {
 		b = enc.Uint16ToBytes(uint16(l))

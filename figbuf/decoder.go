@@ -47,8 +47,8 @@ type Decoder struct {
 // Decode decodes an item or list of items
 func (dec *Decoder) Decode(b []byte, dest ...interface{}) (r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				r = b
 				err = re
 			} else {
@@ -163,8 +163,8 @@ func (dec *Decoder) decodeList(bb []byte, dest ...interface{}) (r []byte) {
 // backing array as `b` for performance
 func (dec *Decoder) DecodeBytes(b []byte) (d []byte, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				d = nil
 				r = b
 				err = re
@@ -183,8 +183,8 @@ func (dec *Decoder) DecodeBytes(b []byte) (d []byte, r []byte, err error) {
 // backing array as `bb` for performance
 func (dec *Decoder) DecodeBytesSlice(bb []byte) (dd [][]byte, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				dd = nil
 				r = bb
 				err = re
@@ -200,8 +200,8 @@ func (dec *Decoder) DecodeBytesSlice(bb []byte) (dd [][]byte, r []byte, err erro
 // DecodeString decodes
 func (dec *Decoder) DecodeString(b []byte) (d string, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				d = ""
 				r = b
 				err = re
@@ -217,8 +217,8 @@ func (dec *Decoder) DecodeString(b []byte) (d string, r []byte, err error) {
 // DecodeBool decodes
 func (dec *Decoder) DecodeBool(b []byte) (d bool, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				d = false
 				r = b
 				err = re
@@ -234,8 +234,8 @@ func (dec *Decoder) DecodeBool(b []byte) (d bool, r []byte, err error) {
 // DecodeInt decodes
 func (dec *Decoder) DecodeInt(b []byte) (d int, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				d = 0
 				r = nil
 				err = re
@@ -251,8 +251,8 @@ func (dec *Decoder) DecodeInt(b []byte) (d int, r []byte, err error) {
 // DecodeInt8 decodes
 func (dec *Decoder) DecodeInt8(b []byte) (d int8, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				d = 0
 				r = nil
 				err = re
@@ -268,8 +268,8 @@ func (dec *Decoder) DecodeInt8(b []byte) (d int8, r []byte, err error) {
 // DecodeInt16 decodes
 func (dec *Decoder) DecodeInt16(b []byte) (d int16, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				d = 0
 				r = nil
 				err = re
@@ -285,8 +285,8 @@ func (dec *Decoder) DecodeInt16(b []byte) (d int16, r []byte, err error) {
 // DecodeInt32 decodes
 func (dec *Decoder) DecodeInt32(b []byte) (d int32, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				d = 0
 				r = nil
 				err = re
@@ -302,8 +302,8 @@ func (dec *Decoder) DecodeInt32(b []byte) (d int32, r []byte, err error) {
 // DecodeInt64 decodes
 func (dec *Decoder) DecodeInt64(b []byte) (d int64, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				d = 0
 				r = nil
 				err = re
@@ -319,8 +319,8 @@ func (dec *Decoder) DecodeInt64(b []byte) (d int64, r []byte, err error) {
 // DecodeUint decodes
 func (dec *Decoder) DecodeUint(b []byte) (d uint, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				d = 0
 				r = nil
 				err = re
@@ -336,8 +336,8 @@ func (dec *Decoder) DecodeUint(b []byte) (d uint, r []byte, err error) {
 // DecodeUint8 decodes
 func (dec *Decoder) DecodeUint8(b []byte) (d uint8, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				d = 0
 				r = nil
 				err = re
@@ -353,8 +353,8 @@ func (dec *Decoder) DecodeUint8(b []byte) (d uint8, r []byte, err error) {
 // DecodeUint16 decodes
 func (dec *Decoder) DecodeUint16(b []byte) (d uint16, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				d = 0
 				r = nil
 				err = re
@@ -370,8 +370,8 @@ func (dec *Decoder) DecodeUint16(b []byte) (d uint16, r []byte, err error) {
 // DecodeUint32 decodes
 func (dec *Decoder) DecodeUint32(b []byte) (d uint32, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				d = 0
 				r = nil
 				err = re
@@ -387,8 +387,8 @@ func (dec *Decoder) DecodeUint32(b []byte) (d uint32, r []byte, err error) {
 // DecodeUint64 decodes
 func (dec *Decoder) DecodeUint64(b []byte) (d uint64, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				d = 0
 				r = nil
 				err = re
@@ -404,8 +404,8 @@ func (dec *Decoder) DecodeUint64(b []byte) (d uint64, r []byte, err error) {
 // DecodeStringSlice decodes
 func (dec *Decoder) DecodeStringSlice(bb []byte) (dd []string, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				dd = nil
 				r = bb
 				err = re
@@ -421,8 +421,8 @@ func (dec *Decoder) DecodeStringSlice(bb []byte) (dd []string, r []byte, err err
 // DecodeIntSlice decodes
 func (dec *Decoder) DecodeIntSlice(bb []byte) (dd []int, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				dd = nil
 				r = bb
 				err = re
@@ -438,8 +438,8 @@ func (dec *Decoder) DecodeIntSlice(bb []byte) (dd []int, r []byte, err error) {
 // DecodeInt8Slice decodes
 func (dec *Decoder) DecodeInt8Slice(bb []byte) (dd []int8, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				dd = nil
 				r = bb
 				err = re
@@ -455,8 +455,8 @@ func (dec *Decoder) DecodeInt8Slice(bb []byte) (dd []int8, r []byte, err error) 
 // DecodeInt16Slice decodes
 func (dec *Decoder) DecodeInt16Slice(bb []byte) (dd []int16, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				dd = nil
 				r = bb
 				err = re
@@ -472,8 +472,8 @@ func (dec *Decoder) DecodeInt16Slice(bb []byte) (dd []int16, r []byte, err error
 // DecodeInt32Slice decodes
 func (dec *Decoder) DecodeInt32Slice(bb []byte) (dd []int32, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				dd = nil
 				r = bb
 				err = re
@@ -489,8 +489,8 @@ func (dec *Decoder) DecodeInt32Slice(bb []byte) (dd []int32, r []byte, err error
 // DecodeInt64Slice decodes
 func (dec *Decoder) DecodeInt64Slice(bb []byte) (dd []int64, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				dd = nil
 				r = bb
 				err = re
@@ -506,8 +506,8 @@ func (dec *Decoder) DecodeInt64Slice(bb []byte) (dd []int64, r []byte, err error
 // DecodeUintSlice decodes
 func (dec *Decoder) DecodeUintSlice(bb []byte) (dd []uint, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				dd = nil
 				r = bb
 				err = re
@@ -523,8 +523,8 @@ func (dec *Decoder) DecodeUintSlice(bb []byte) (dd []uint, r []byte, err error) 
 // DecodeUint8Slice decodes
 func (dec *Decoder) DecodeUint8Slice(bb []byte) (dd []uint8, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				dd = nil
 				r = bb
 				err = re
@@ -540,8 +540,8 @@ func (dec *Decoder) DecodeUint8Slice(bb []byte) (dd []uint8, r []byte, err error
 // DecodeUint16Slice decodes
 func (dec *Decoder) DecodeUint16Slice(bb []byte) (dd []uint16, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				dd = nil
 				r = bb
 				err = re
@@ -557,8 +557,8 @@ func (dec *Decoder) DecodeUint16Slice(bb []byte) (dd []uint16, r []byte, err err
 // DecodeUint32Slice decodes
 func (dec *Decoder) DecodeUint32Slice(bb []byte) (dd []uint32, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				dd = nil
 				r = bb
 				err = re
@@ -574,8 +574,8 @@ func (dec *Decoder) DecodeUint32Slice(bb []byte) (dd []uint32, r []byte, err err
 // DecodeUint64Slice decodes
 func (dec *Decoder) DecodeUint64Slice(bb []byte) (dd []uint64, r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				dd = nil
 				r = bb
 				err = re
@@ -591,8 +591,8 @@ func (dec *Decoder) DecodeUint64Slice(bb []byte) (dd []uint64, r []byte, err err
 // DecodeBinaryUnmarshaler decodes
 func (dec *Decoder) DecodeBinaryUnmarshaler(b []byte, dest encoding.BinaryUnmarshaler) (r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				r = nil
 				err = re
 			} else {
@@ -606,8 +606,8 @@ func (dec *Decoder) DecodeBinaryUnmarshaler(b []byte, dest encoding.BinaryUnmars
 // DecodeTextUnmarshaler decodes
 func (dec *Decoder) DecodeTextUnmarshaler(b []byte, dest encoding.TextUnmarshaler) (r []byte, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
 				r = nil
 				err = re
 			} else {

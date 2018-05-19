@@ -688,6 +688,10 @@ func (tr *State) getNode(dec *figbuf.Decoder, k []byte) ([][]byte, error) {
 	}
 	if v == nil {
 		v, err = tr.KeyStore.Get(k)
+
+		if err != nil {
+			return nil, err
+		}
 	}
 	var node [][]byte
 	node, _, err = dec.DecodeBytesSlice(v)
