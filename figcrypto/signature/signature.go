@@ -6,13 +6,34 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"io"
 	"math/big"
+	"os"
 
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/figaro-tech/go-figaro/figcrypto/hash"
 )
+
+const (
+	cofactor = 1
+)
+
+// Errors used in package
+var (
+	version       = []byte{0x00} // Using different versions for different nets means addresses won't cross-validate
+	ErrInvalidKey = errors.New("figcrypto signature: invalid public or private key")
+)
+
+func init() {
+	if v, ok := os.LookupEnv("ADDRESS_VERSION_CODE"); ok {
+		b, _ := hex.DecodeString(v)
+		if len(b) == 1 {
+			version = b
+		}
+	}
+}
 
 // ToHumanAddress converts a binary address to a Base58 encoded "human readable" address
 func ToHumanAddress(binaddr []byte) string {
@@ -45,7 +66,7 @@ func AddressFromPublicKey(pubkey33 []byte) (address []byte, err error) {
 	}
 	h := hash.Hash256(pubkey33)
 	h = hash.Hash160(h)
-	address = append([]byte{version}, h...)
+	address = append(version, h...)
 	h2 := hash.Hash256(address)
 	h2 = hash.Hash256(h2)
 	checksum := h2[:4]
@@ -67,16 +88,6 @@ func SignerFromPrivateKey(privkey32 []byte) (*ecdsa.PrivateKey, error) {
 		PublicKey: ecdsa.PublicKey{Curve: c, X: x, Y: y},
 	}, nil
 }
-
-const (
-	version  = 0x00 // Using different versions for different nets means addresses won't cross-validate
-	cofactor = 1
-)
-
-// Errors used in package
-var (
-	ErrInvalidKey = errors.New("figcrypto signature: invalid public or private key")
-)
 
 // GenerateKey generates a public/private key pair that can be used to sign and verify messages,
 // along with a corresponding address. if rand is nil, crypto/rand.Reader will be used.
