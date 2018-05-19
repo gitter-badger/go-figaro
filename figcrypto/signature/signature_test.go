@@ -10,47 +10,36 @@ import (
 )
 
 func ExampleVerify() {
-	priv, pub, addr, _ := signature.GenerateKey(nil)
+	seed := "hello darkness my old friend"
+	priv, pub, addr, err := signature.GenerateFromSeed(seed)
+	// priv, pub, addr, err := signature.GenerateKey(nil)
+	if err != nil {
+		log.Panic(err)
+	}
 	msg := []byte("hello world")
 	sig, _ := signature.Sign(priv, msg)
-	fullpub := &signature.KeyFromBytes(priv).PublicKey
-	log.Printf("Private key: %#x\n", priv)
-	log.Printf("Public key: %#x\n", pub)
-	log.Printf("Address: %s\n", addr)
-	fmt.Printf("Valid identity: %t\n", signature.Identify(sig, msg) == addr)
+	fmt.Printf("Private key: %#x\n", priv)
+	fmt.Printf("Public key: %#x\n", pub)
+	fmt.Printf("Address: %#x\n", addr)
+	fmt.Printf("Human Address: %s\n", signature.ToHumanAddress(addr))
+	fmt.Printf("Valid identity: %t\n", bytes.Equal(signature.Identify(sig, msg), addr))
 	fmt.Printf("Valid with pubkey: %t\n", signature.Verify(pub, sig, msg))
-	fmt.Printf("Valid with full pubkey: %t\n", signature.VerifyWithKey(fullpub, sig, msg))
-	fmt.Printf("Valid with addr: %t\n", signature.VerifyWithAddr(addr, sig, msg))
+	fmt.Printf("Valid with addr: %t\n", signature.VerifyWithAddress(addr, sig, msg))
 
-	wpriv, wpub, waddr, _ := signature.GenerateKey(nil)
-	wsig, _ := signature.Sign(wpriv, msg)
-	wfullpub := &signature.KeyFromBytes(wpriv).PublicKey
-	fmt.Printf("Invalid with wrong sig: %t\n", signature.VerifyWithKey(fullpub, wsig, msg))
-	fmt.Printf("Invalid with wrong addr: %t\n", signature.VerifyWithAddr(waddr, sig, msg))
-	fmt.Printf("Invalid with wrong pubkey: %t\n", signature.Verify(wpub, sig, msg))
-	fmt.Printf("Invalid with alid with full pubkey: %t\n", signature.VerifyWithKey(wfullpub, sig, msg))
+	_, wpub, waddr, _ := signature.GenerateKey(nil)
+	fmt.Printf("Valid with wrong pubkey: %t\n", signature.Verify(wpub, sig, msg))
+	fmt.Printf("Valid with wrong addr: %t\n", signature.VerifyWithAddress(waddr, sig, msg))
 
 	// Output:
+	// Private key: 0xfa98dc283ee4e866809227266e23c63048af7103d43fd65576a67269f8299f21
+	// Public key: 0x01eace460e3fe0e07725f2e01ce2ee7e6fcb21078d8933841a5df5d980d7126bd7
+	// Address: 0x0066423b3664eb7d98de3f77ceb32e49e25b4317787535351b
+	// Human Address: 1AKhGQ5vTbMdSPDLYaueVAtgaNwS6mYkK4
 	// Valid identity: true
 	// Valid with pubkey: true
-	// Valid with full pubkey: true
 	// Valid with addr: true
-	// Invalid with wrong sig: false
-	// Invalid with wrong addr: false
-	// Invalid with wrong pubkey: false
-	// Invalid with alid with full pubkey: false
-}
-
-func ExampleRecoverPublicFromPrivate() {
-	priv, pub, addr, _ := signature.GenerateKey(nil)
-
-	rpub, raddr, _ := signature.RecoverPublicFromPrivate(priv)
-	fmt.Printf("Pub is same: %t\n", bytes.Equal(pub, rpub))
-	fmt.Printf("Addr is same: %t\n", addr == raddr)
-
-	// Output:
-	// Pub is same: true
-	// Addr is same: true
+	// Valid with wrong pubkey: false
+	// Valid with wrong addr: false
 }
 
 func BenchmarkIdentify(b *testing.B) {
@@ -68,15 +57,5 @@ func BenchmarkVerifyWithKey(b *testing.B) {
 	sig, _ := signature.Sign(priv, msg)
 	for i := 0; i < b.N; i++ {
 		signature.Verify(pub, sig, msg)
-	}
-}
-
-func BenchmarkVerifyWithFullKey(b *testing.B) {
-	priv, _, _, _ := signature.GenerateKey(nil)
-	pub := &signature.KeyFromBytes(priv).PublicKey
-	msg := []byte("hello world")
-	sig, _ := signature.Sign(priv, msg)
-	for i := 0; i < b.N; i++ {
-		signature.VerifyWithKey(pub, sig, msg)
 	}
 }

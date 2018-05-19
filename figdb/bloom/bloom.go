@@ -23,15 +23,13 @@
 // IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Package bbloom implements a high performance Bloom filter
-package bbloom
+// Package bloom implements a high performance Bloom filter
+package bloom
 
 import (
 	"log"
 	"math"
 	"unsafe"
-
-	"github.com/figaro-tech/go-figaro/figcrypto/hash"
 
 	"github.com/figaro-tech/go-figaro/figbuf"
 )
@@ -108,7 +106,7 @@ func Unmarshal(data []byte) (bloom *Bloom, err error) {
 
 // Add adds an entry to the Bloom filter
 func (bl *Bloom) Add(entry []byte) {
-	l, h := hash.SipHash(entry, bl.shift)
+	l, h := SipHash(entry, bl.shift)
 	for i := uint64(0); i < bl.setLocs; i++ {
 		bl.set((h + i*l) & bl.size)
 	}
@@ -116,7 +114,7 @@ func (bl *Bloom) Add(entry []byte) {
 
 // Has checks whether the Bloom filter contains the entry
 func (bl *Bloom) Has(entry []byte) bool {
-	l, h := hash.SipHash(entry, bl.shift)
+	l, h := SipHash(entry, bl.shift)
 	for i := uint64(0); i < bl.setLocs; i++ {
 		if bl.isSet((h + i*l) & bl.size) {
 			continue

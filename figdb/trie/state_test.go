@@ -10,7 +10,7 @@ import (
 )
 
 func ExampleState_Set() {
-	state := trie.State{
+	state := &trie.State{
 		KeyStore: mock.NewKeyStore(),
 	}
 	do := [][]byte{[]byte("do"), []byte("verb")}
@@ -93,8 +93,8 @@ func ExampleState_Set() {
 	// 0x5888437106063661c31dda57f26bf76c63ee1682a1421cee7fe45e8809d67c9a
 }
 
-func ExampleState_Get() {
-	state := trie.State{
+func ExampleValidateMPT() {
+	state := &trie.State{
 		KeyStore: mock.NewKeyStore(),
 	}
 	do := [][]byte{[]byte("do"), []byte("verb")}
@@ -128,51 +128,53 @@ func ExampleState_Get() {
 		return
 	}
 
-	value, err := state.Get(root, do[0])
+	var value []byte
+	var proof [][][]byte
+	value, proof, err = state.GetAndProve(root, do[0])
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-	fmt.Printf("%s\n", string(value))
+	valid := trie.ValidateMPT(root, do[0], value, proof)
+	fmt.Printf("%t\n", valid)
 
-	value, err = state.Get(root, dog[0])
+	value, proof, err = state.GetAndProve(root, dog[0])
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-	fmt.Printf("%s\n", string(value))
+	valid = trie.ValidateMPT(root, dog[0], value, proof)
+	fmt.Printf("%t\n", valid)
 
-	value, err = state.Get(root, doge[0])
+	value, proof, err = state.GetAndProve(root, doge[0])
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-	fmt.Printf("%s\n", string(value))
+	valid = trie.ValidateMPT(root, doge[0], value, proof)
+	fmt.Printf("%t\n", valid)
 
-	value, err = state.Get(root, horse[0])
+	value, proof, err = state.GetAndProve(root, horse[0])
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-	fmt.Printf("%s\n", string(value))
+	valid = trie.ValidateMPT(root, horse[0], value, proof)
+	fmt.Printf("%t\n", valid)
 
-	value, err = state.Get(root, []byte("banjo"))
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	fmt.Printf("%#v\n", string(value))
+	valid = trie.ValidateMPT(root, []byte("banjo"), value, proof)
+	fmt.Printf("%t\n", valid)
 
 	// Output:
-	// verb
-	// puppy
-	// coin
-	// stallion
-	// ""
+	// true
+	// true
+	// true
+	// true
+	// false
 }
 
 func ExampleState_GetAndProve() {
-	state := trie.State{
+	state := &trie.State{
 		KeyStore: mock.NewKeyStore(),
 	}
 	do := [][]byte{[]byte("do"), []byte("verb")}
@@ -259,8 +261,8 @@ func ExampleState_GetAndProve() {
 	// [][][]uint8{[][]uint8{[]uint8{0x16}, []uint8{0x1b, 0x56, 0xa5, 0xfb, 0x50, 0xe3, 0x5a, 0x56, 0xf0, 0x84, 0xcd, 0x7, 0xef, 0xa5, 0x33, 0x82, 0xb7, 0x4c, 0x35, 0x7a, 0x91, 0x68, 0x1d, 0x9f, 0x63, 0xdf, 0x6b, 0xf, 0xb2, 0x5e, 0x1e, 0x16}}, [][]uint8{[]uint8{}, []uint8{}, []uint8{}, []uint8{}, []uint8{0xba, 0x51, 0xb5, 0x26, 0x46, 0xd5, 0x44, 0x85, 0x88, 0x55, 0x7, 0xaf, 0xa6, 0xbf, 0x0, 0xd9, 0xcb, 0xf6, 0x6a, 0x17, 0x30, 0x6d, 0x8b, 0xcb, 0x9d, 0x5a, 0x6c, 0x7c, 0xd3, 0x31, 0xc9, 0xf}, []uint8{}, []uint8{}, []uint8{}, []uint8{0xcf, 0x85, 0x20, 0x6f, 0x72, 0x73, 0x65, 0x88, 0x73, 0x74, 0x61, 0x6c, 0x6c, 0x69, 0x6f, 0x6e}, []uint8{}, []uint8{}, []uint8{}, []uint8{}, []uint8{}, []uint8{}, []uint8{}, []uint8{}}}
 }
 
-func ExampleValidate() {
-	state := trie.State{
+func ExampleState_Get() {
+	state := &trie.State{
 		KeyStore: mock.NewKeyStore(),
 	}
 	do := [][]byte{[]byte("do"), []byte("verb")}
@@ -294,47 +296,47 @@ func ExampleValidate() {
 		return
 	}
 
-	value, proof, err := state.GetAndProve(root, do[0])
+	value, err := state.Get(root, do[0])
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-	valid := trie.Validate(root, do[0], value, proof)
-	fmt.Printf("%t\n", valid)
+	fmt.Printf("%s\n", string(value))
 
-	value, proof, err = state.GetAndProve(root, dog[0])
+	value, err = state.Get(root, dog[0])
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-	valid = trie.Validate(root, dog[0], value, proof)
-	fmt.Printf("%t\n", valid)
+	fmt.Printf("%s\n", string(value))
 
-	value, proof, err = state.GetAndProve(root, doge[0])
+	value, err = state.Get(root, doge[0])
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-	valid = trie.Validate(root, doge[0], value, proof)
-	fmt.Printf("%t\n", valid)
+	fmt.Printf("%s\n", string(value))
 
-	value, proof, err = state.GetAndProve(root, horse[0])
+	value, err = state.Get(root, horse[0])
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-	valid = trie.Validate(root, horse[0], value, proof)
-	fmt.Printf("%t\n", valid)
+	fmt.Printf("%s\n", string(value))
 
-	valid = trie.Validate(root, []byte("banjo"), value, proof)
-	fmt.Printf("%t\n", valid)
+	value, err = state.Get(root, []byte("banjo"))
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	fmt.Printf("%#v\n", string(value))
 
 	// Output:
-	// true
-	// true
-	// true
-	// true
-	// false
+	// verb
+	// puppy
+	// coin
+	// stallion
+	// ""
 }
 
 func BenchmarkState_Set(b *testing.B) {
@@ -343,7 +345,7 @@ func BenchmarkState_Set(b *testing.B) {
 	doge := [][]byte{[]byte("doge"), []byte("coin")}
 	horse := [][]byte{[]byte("horse"), []byte("stallion")}
 
-	state := trie.State{
+	state := &trie.State{
 		KeyStore: mock.NewKeyStore(),
 	}
 	root, err := state.Set(nil, do[0], do[1])
@@ -371,7 +373,7 @@ func BenchmarkState_Get(b *testing.B) {
 	dog := [][]byte{[]byte("dog"), []byte("puppy")}
 	doge := [][]byte{[]byte("doge"), []byte("coin")}
 
-	state := trie.State{
+	state := &trie.State{
 		KeyStore: mock.NewKeyStore(),
 	}
 	root, err := state.Set(nil, do[0], do[1])

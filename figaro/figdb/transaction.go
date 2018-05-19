@@ -3,20 +3,20 @@ package figdb
 
 import (
 	"github.com/figaro-tech/go-figaro/figaro"
-	"github.com/figaro-tech/go-figaro/figcrypto/trie"
+	"github.com/figaro-tech/go-figaro/figdb"
 )
 
-// SetTxCommits archives commits, returning the merkle root of the archive.
-func (db *DB) SetTxCommits(ed figaro.TransactionEncodingService, commits ...figaro.TxCommit) ([]byte, error) {
+// SetTxCommits saves the commits, returning the key and set in binary format.
+func (db *DB) SetTxCommits(ed figaro.TransactionEncodingService, commits ...figaro.TxCommit) ([]byte, []byte, error) {
 	encoded := make([][]byte, len(commits))
 	for i, c := range commits {
 		e, err := ed.EncodeTxCommit(c)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		encoded[i] = e
 	}
-	return db.Set.Save(encoded, 0.01)
+	return db.Set.Create(encoded, 0.01)
 }
 
 // HasTxCommits retrieves an archive of commits from a merkle root.
@@ -105,5 +105,5 @@ func (db *DB) ValidateTransaction(ed figaro.TransactionEncodingService, root []b
 	if err != nil {
 		return false
 	}
-	return trie.Validate(root, index, e, proof)
+	return figdb.ValidateArchive(root, index, e, proof)
 }

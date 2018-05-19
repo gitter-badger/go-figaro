@@ -19,12 +19,12 @@ func (db DB) SaveAccount(ed figaro.AccountEncodingService, root []byte, account 
 	if err != nil {
 		return nil, err
 	}
-	return db.State.Set(root, signature.AddrToBytes(account.Address), buf)
+	return db.State.Set(root, signature.ToBinaryAddress(account.Address), buf)
 }
 
 // FetchAccount returns an account from the database
 func (db DB) FetchAccount(ed figaro.AccountEncodingService, root []byte, address string) (*figaro.Account, error) {
-	buf, err := db.State.Get(root, signature.AddrToBytes(address))
+	buf, err := db.State.Get(root, signature.ToBinaryAddress(address))
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func (db DB) FetchAccount(ed figaro.AccountEncodingService, root []byte, address
 
 // ProveAccount returns an account from the database, along with a proof
 func (db DB) ProveAccount(ed figaro.AccountEncodingService, root []byte, address string) (*figaro.Account, [][][]byte, error) {
-	buf, proof, err := db.State.GetAndProve(root, signature.AddrToBytes(address))
+	buf, proof, err := db.State.GetAndProve(root, signature.ToBinaryAddress(address))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -61,7 +61,7 @@ func ValidateAccount(ed figaro.AccountEncodingService, root []byte, account *fig
 	if err != nil {
 		return false
 	}
-	return figdb.StateValidate(root, signature.AddrToBytes(account.Address), buf, proof)
+	return figdb.ValidateState(root, signature.ToBinaryAddress(account.Address), buf, proof)
 }
 
 // SaveAccountStorage saves binary key/value pair to the account's storage. Requires passing the world state root as the first param, and returns the new world state root created as a result of the account storage root change.
@@ -86,5 +86,5 @@ func (db DB) ProveAccountStorage(ed figaro.AccountEncodingService, account *figa
 
 // ValidateAccountStorage validates a value at key in the account storage root against the Merkle proof.
 func ValidateAccountStorage(ed figaro.AccountEncodingService, account *figaro.Account, key, data []byte, proof [][][]byte) bool {
-	return figdb.StateValidate(account.StorageRoot, key, data, proof)
+	return figdb.ValidateState(account.StorageRoot, key, data, proof)
 }

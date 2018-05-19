@@ -29,12 +29,12 @@ jobs:
 
       # Auxiliary Tests
       - run: golint -set_exit_status $(go list ./...)
+      - run: go vet ./...
       - run: ineffassign .
 
       # Broken/Unreliable Tests
       # - run: misspell -error $(find . -type f -name '*.go' -not -path './vendor/*')
       # - run: gocyclo --over 15 $(find . -type f -name '*.go' -not -path './vendor/*')
-      # - run: go vet ./...
 
       # Unit Tests
       - run: go test -v ./...

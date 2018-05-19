@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"testing"
 
-	cryptotrie "github.com/figaro-tech/go-figaro/figcrypto/trie"
 	"github.com/figaro-tech/go-figaro/figdb/mock"
 	"github.com/figaro-tech/go-figaro/figdb/trie"
 )
@@ -85,7 +84,7 @@ func TestArchive_GetAndProve(t *testing.T) {
 			if !reflect.DeepEqual(got, tt.args.batch[tt.args.index]) {
 				t.Errorf("Archive.Get() = %v, want %v", got, tt.args.batch[tt.args.index])
 			}
-			if valid := cryptotrie.Validate(root, tt.args.index, got, got1); valid != tt.want {
+			if valid := trie.ValidateBMT(root, tt.args.index, got, got1); valid != tt.want {
 				t.Errorf("ArchiveValidator.Validate() = %v, want %v", valid, tt.want)
 			}
 		})

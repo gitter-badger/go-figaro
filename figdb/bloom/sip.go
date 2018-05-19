@@ -8,7 +8,7 @@
 // Package siphash implements SipHash-2-4, a fast short-input PRF
 // created by Jean-Philippe Aumasson and Daniel J. Bernstein.
 
-package hash
+package bloom
 
 // SipHash returns the 64-bit SipHash-2-4 of the given byte slice with two 64-bit
 // parts of 128-bit key: k0 and k1.

@@ -10,9 +10,19 @@ import (
 	"github.com/figaro-tech/go-figaro/figdb/types"
 )
 
-// StateValidate validates a proof for a given root, key, and value
-func StateValidate(root, key, value []byte, proof [][][]byte) bool {
-	return trie.Validate(root, key, value, proof)
+// ValidateSet is a convenience wrapper for set.ValidateSet
+func ValidateSet(root []byte, index int, data []byte, proof [][]byte) bool {
+	return trie.ValidateBMT(root, index, data, proof)
+}
+
+// ValidateArchive is a convenience wrapper for trie.ValidateBMT
+func ValidateArchive(root []byte, index int, data []byte, proof [][]byte) bool {
+	return trie.ValidateBMT(root, index, data, proof)
+}
+
+// ValidateState is a convenience wrapper for trie.ValidateMPT
+func ValidateState(root, key, value []byte, proof [][][]byte) bool {
+	return trie.ValidateMPT(root, key, value, proof)
 }
 
 type trieDB struct {

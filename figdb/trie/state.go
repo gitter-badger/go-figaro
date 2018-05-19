@@ -38,7 +38,7 @@ func (tr *State) getNewBranch() [][]byte {
 		tr.brat = 0
 	}
 	// Grab one from the pool and set the values
-	bs := &tr.branches[tr.brat]
+	bs := tr.branches[tr.brat]
 	tr.brat++
 	return bs[:]
 }
@@ -53,7 +53,7 @@ func (tr *State) getNewNode(a, b []byte) [][]byte {
 		tr.noat = 0
 	}
 	// Grab one from the pool and set the values
-	bs := &tr.nodes[tr.noat]
+	bs := tr.nodes[tr.noat]
 	bs[0] = a
 	bs[1] = b
 	tr.noat++
@@ -63,6 +63,9 @@ func (tr *State) getNewNode(a, b []byte) [][]byte {
 // Set updates a key/value pair from a given Merkle root,
 // returning the new Merkle root containing all state
 func (tr *State) Set(root, key, value []byte) ([]byte, error) {
+	tr.lock.Lock()
+	defer tr.lock.Unlock()
+
 	enc := figbuf.EncoderPool.Get().(*figbuf.Encoder)
 	defer figbuf.EncoderPool.Put(enc)
 
@@ -72,14 +75,10 @@ func (tr *State) Set(root, key, value []byte) ([]byte, error) {
 	tr.KeyStore.Batch()
 	defer tr.KeyStore.Write()
 
-	tr.lock.Lock()
-	defer tr.lock.Unlock()
-
 	path := nibbles(key)
 	if len(root) == 0 {
 		return tr.setNilRoot(enc, path, value)
 	}
-
 	return tr.set(enc, dec, root, path, value)
 }
 
@@ -89,14 +88,14 @@ func (tr *State) Set(root, key, value []byte) ([]byte, error) {
 // It does not batch the inserts, because it assumes this is part
 // of a larger batch of updates
 func (tr *State) SetInBatch(root, key, value []byte) ([]byte, error) {
+	tr.lock.Lock()
+	defer tr.lock.Unlock()
+
 	enc := figbuf.EncoderPool.Get().(*figbuf.Encoder)
 	defer figbuf.EncoderPool.Put(enc)
 
 	dec := figbuf.DecoderPool.Get().(*figbuf.Decoder)
 	defer figbuf.DecoderPool.Put(dec)
-
-	tr.lock.Lock()
-	defer tr.lock.Unlock()
 
 	path := nibbles(key)
 	if len(root) == 0 {
@@ -175,14 +174,22 @@ func (tr *State) setSingleBranchNode(enc *figbuf.Encoder, dec *figbuf.Decoder, n
 	if err != nil {
 		return nil, err
 	}
+	var newpath []uint8
 	if len(child) == 16 {
-		return tr.setNode(enc, tr.getNewNode(compactEncode(append(path, i), false), node[i]))
+		newpath = make([]uint8, 0, len(path)+1)
+		newpath = append(newpath, path...)
+		newpath = append(newpath, i)
+		return tr.setNode(enc, tr.getNewNode(compactEncode(newpath, false), node[i]))
 	}
 	short, term, err := compactDecode(child[0])
 	if err != nil {
 		return nil, err
 	}
-	return tr.setNode(enc, tr.getNewNode(compactEncode(append(append(path, i), short...), term), child[1]))
+	newpath = make([]uint8, 0, len(path)+1+len(short))
+	newpath = append(newpath, path...)
+	newpath = append(newpath, i)
+	newpath = append(newpath, short...)
+	return tr.setNode(enc, tr.getNewNode(compactEncode(newpath, term), child[1]))
 }
 
 func (tr *State) setLeafOrExtension(enc *figbuf.Encoder, dec *figbuf.Decoder, node [][]byte, path []uint8, value []byte) ([]byte, error) {
@@ -559,11 +566,11 @@ func (tr *State) setNode(enc *figbuf.Encoder, node [][]byte) ([]byte, error) {
 
 // Get returns the value stored at a key under a given Merkle root
 func (tr *State) Get(root, key []byte) ([]byte, error) {
-	dec := figbuf.DecoderPool.Get().(*figbuf.Decoder)
-	defer figbuf.DecoderPool.Put(dec)
-
 	tr.lock.RLock()
 	defer tr.lock.RUnlock()
+
+	dec := figbuf.DecoderPool.Get().(*figbuf.Decoder)
+	defer figbuf.DecoderPool.Put(dec)
 
 	if len(root) == 0 {
 		return nil, nil
@@ -610,11 +617,11 @@ func (tr *State) get(dec *figbuf.Decoder, root []byte, path []uint8) ([]byte, er
 // GetAndProve returns the value stored at a key under a given Merkle root,
 // along with a Merkle proof that the value resides at key under root
 func (tr *State) GetAndProve(root, key []byte) ([]byte, [][][]byte, error) {
-	dec := figbuf.DecoderPool.Get().(*figbuf.Decoder)
-	defer figbuf.DecoderPool.Put(dec)
-
 	tr.lock.RLock()
 	defer tr.lock.RUnlock()
+
+	dec := figbuf.DecoderPool.Get().(*figbuf.Decoder)
+	defer figbuf.DecoderPool.Put(dec)
 
 	if len(root) == 0 {
 		return nil, nil, nil
@@ -680,7 +687,7 @@ func (tr *State) getNode(dec *figbuf.Decoder, k []byte) ([][]byte, error) {
 		return nil, nil
 	}
 	if len(k) < 32 {
-		v = k
+		v = dec.Copy(k)
 	} else if tr.Cache != nil {
 		if c, ok := tr.Cache.Get(k); ok {
 			v = c
@@ -698,8 +705,8 @@ func (tr *State) getNode(dec *figbuf.Decoder, k []byte) ([][]byte, error) {
 	return node, err
 }
 
-// Validate confirms whether a merkle patricia proof is valid for a given root, key, and value
-func Validate(root []byte, key, value []byte, proof [][][]byte) bool {
+// ValidateMPT confirms whether a merkle patricia trie proof is valid for a given root, key, and value
+func ValidateMPT(root []byte, key, value []byte, proof [][][]byte) bool {
 	enc := figbuf.EncoderPool.Get().(*figbuf.Encoder)
 	defer figbuf.EncoderPool.Put(enc)
 
@@ -772,15 +779,24 @@ func compactEncode(path []uint8, term bool) []byte {
 		termSet = 1
 	}
 	flags := uint8(2*termSet + len(path)&1)
+	var fpath []uint8
 	if len(path)&1 == 1 {
-		path = append([]uint8{flags}, path...)
+		fpath = make([]uint8, 0, len(path)+1)
+		fpath = append(fpath, flags)
+		fpath = append(fpath, path...)
 	} else {
-		path = append([]uint8{flags, 0}, path...)
+		fpath = make([]uint8, 0, len(path)+2)
+		fpath = append(fpath, flags)
+		fpath = append(fpath, 0)
+		fpath = append(fpath, path...)
 	}
-	return nibbleBytes(path)
+	return nibbleBytes(fpath)
 }
 
 func compactDecode(bytes []byte) ([]uint8, bool, error) {
+	if len(bytes) == 0 {
+		return nil, false, ErrInvalidCompactEncoding
+	}
 	nibs := nibbles(bytes)
 	flags := nibs[0]
 	var short []uint8
@@ -820,11 +836,11 @@ func singleNode(bb [][]byte) (uint8, bool) {
 			hit = uint8(i)
 			count++
 		}
+		if count > 1 {
+			return 0, false
+		}
 	}
-	if count == 1 {
-		return hit, true
-	}
-	return 0, false
+	return hit, true
 }
 
 func overlap(short, path []uint8) (overlap []uint8, sremainder []uint8, premainder []uint8) {
@@ -834,7 +850,11 @@ func overlap(short, path []uint8) (overlap []uint8, sremainder []uint8, premaind
 		}
 		overlap = append(overlap, v)
 	}
-	return overlap, short[len(overlap):], path[len(overlap):]
+	sremainder = make([]byte, len(short)-len(overlap))
+	copy(sremainder, short[len(overlap):])
+	premainder = make([]byte, len(path)-len(overlap))
+	copy(premainder, path[len(overlap):])
+	return
 }
 
 func pathEqual(a, b []uint8) bool {
@@ -859,12 +879,18 @@ func nibbles(bytes []byte) []uint8 {
 }
 
 func nibbleBytes(nibbles []uint8) []byte {
+	var nbytes []byte
 	if len(nibbles)&1 == 1 {
-		nibbles = append([]uint8{0}, nibbles...)
-	}
-	nbytes := make([]byte, len(nibbles)/2)
-	for i := 0; i < len(nibbles); i += 2 {
-		nbytes[i/2] = byte(nibbles[i]<<4) + byte(nibbles[i+1]&0xf)
+		nbytes = make([]byte, (len(nibbles)+1)/2)
+		nbytes[0] = byte(0) + byte(nibbles[1]&0xf)
+		for i := 2; i < len(nibbles); i += 2 {
+			nbytes[i/2] = byte(nibbles[i]<<4) + byte(nibbles[i+1]&0xf)
+		}
+	} else {
+		nbytes = make([]byte, len(nibbles)/2)
+		for i := 0; i < len(nibbles); i += 2 {
+			nbytes[i/2] = byte(nibbles[i]<<4) + byte(nibbles[i+1]&0xf)
+		}
 	}
 	return nbytes
 }

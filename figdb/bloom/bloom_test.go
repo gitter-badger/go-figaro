@@ -1,13 +1,13 @@
-package bbloom_test
+package bloom_test
 
 import (
 	"fmt"
 
-	"github.com/figaro-tech/go-figaro/figdb/filter/bbloom"
+	"github.com/figaro-tech/go-figaro/figdb/bloom"
 )
 
-func ExampleBloomTS_Add() {
-	bloom := bbloom.NewTSWithEstimates(10, 0.01)
+func ExampleBloom_Add() {
+	bloom := bloom.NewWithEstimates(10, 0.01)
 	data := [][]byte{[]byte("dog"), []byte("doge"), []byte("coin")}
 	for _, datum := range data {
 		bloom.Add(datum)
