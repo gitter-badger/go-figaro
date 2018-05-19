@@ -11,8 +11,8 @@ import (
 )
 
 // ValidateSet is a convenience wrapper for set.ValidateSet
-func ValidateSet(root []byte, index int, data []byte, proof [][]byte) bool {
-	return trie.ValidateBMT(root, index, data, proof)
+func ValidateSet(key, data []byte) bool {
+	return set.Validate(key, data)
 }
 
 // ValidateArchive is a convenience wrapper for trie.ValidateBMT
