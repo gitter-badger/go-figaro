@@ -61,7 +61,7 @@ func (tr *Archive) Retrieve(root []byte) ([][]byte, error) {
 		return nil, nil
 	}
 
-	data, _, err := dec.DecodeBytesSlice(value)
+	data, err := dec.DecodeBytesSlice(value)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func (tr *Archive) Get(root []byte, index int) ([]byte, error) {
 	if value == nil {
 		return nil, nil
 	}
-	data, _, err := dec.DecodeBytesSlice(value)
+	data, err := dec.DecodeBytesSlice(value)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func (tr *Archive) GetAndProve(root []byte, index int) ([]byte, [][]byte, error)
 	if value == nil {
 		return nil, nil, nil
 	}
-	data, _, err := dec.DecodeBytesSlice(value)
+	data, err := dec.DecodeBytesSlice(value)
 	if err != nil {
 		return nil, nil, err
 	}

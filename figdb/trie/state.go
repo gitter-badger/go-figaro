@@ -701,7 +701,7 @@ func (tr *State) getNode(dec *figbuf.Decoder, k []byte) ([][]byte, error) {
 		}
 	}
 	var node [][]byte
-	node, _, err = dec.DecodeBytesSlice(v)
+	node, err = dec.DecodeBytesSlice(v)
 	return node, err
 }
 

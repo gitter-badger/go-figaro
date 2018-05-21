@@ -63,493 +63,627 @@ type Decoder struct {
 }
 
 // Decode decodes an item or list of items
-func (dec *Decoder) Decode(b []byte, dest ...interface{}) (r []byte, err error) {
+func (dec *Decoder) Decode(b []byte, dest ...interface{}) (err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
-				r = b
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
 	if len(dest) == 0 {
 		return
 	}
-	if len(dest) == 1 {
-		r = dec.decode(b, dest[0])
-	}
-	r = dec.decodeList(b, dest...)
-	return
-}
-
-// DecodeBytes decodes
-func (dec *Decoder) DecodeBytes(b []byte) (d []byte, r []byte, err error) {
-	defer func() {
-		if rec := recover(); rec != nil {
-			if re, ok := rec.(error); ok {
-				d = nil
-				r = b
-				err = re
-			} else {
-				log.Panic(r)
-			}
-		}
-	}()
 	c := dec.Copy(b)
-	d, r = dec.DecodeNextBytes(c)
+	var r []byte
+	if len(dest) == 1 {
+		r = dec.decode(c, dest[0])
+	} else {
+		r = dec.decode(c, dest)
+	}
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
-// DecodeBytesSlice decodes
-func (dec *Decoder) DecodeBytesSlice(bb []byte) (dd [][]byte, r []byte, err error) {
+// DecodeList RLP decodes a list, calling builder for encoding of each item
+func (dec *Decoder) DecodeList(bb []byte, builder func([]byte) []byte) (err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
-				dd = nil
-				r = bb
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
 	c := dec.Copy(bb)
+	var r []byte
+	r = dec.DecodeNextList(c, builder)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
+	return
+}
+
+// DecodeBytes decodes
+func (dec *Decoder) DecodeBytes(b []byte) (d []byte, err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
+				d = nil
+				err = re
+			} else {
+				log.Panic(re)
+			}
+		}
+	}()
+	c := dec.Copy(b)
+	var r []byte
+	d, r = dec.DecodeNextBytes(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
+	return
+}
+
+// DecodeBytesSlice decodes
+func (dec *Decoder) DecodeBytesSlice(bb []byte) (dd [][]byte, err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
+				dd = nil
+				err = re
+			} else {
+				log.Panic(re)
+			}
+		}
+	}()
+	c := dec.Copy(bb)
+	var r []byte
 	dd, r = dec.DecodeNextBytesSlice(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeString decodes
-func (dec *Decoder) DecodeString(b []byte) (d string, r []byte, err error) {
+func (dec *Decoder) DecodeString(b []byte) (d string, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				d = ""
-				r = b
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	d, r = dec.DecodeNextString(b)
+	c := dec.Copy(b)
+	var r []byte
+	d, r = dec.DecodeNextString(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeBool decodes
-func (dec *Decoder) DecodeBool(b []byte) (d bool, r []byte, err error) {
+func (dec *Decoder) DecodeBool(b []byte) (d bool, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				d = false
-				r = b
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	d, r = dec.DecodeNextBool(b)
+	c := dec.Copy(b)
+	var r []byte
+	d, r = dec.DecodeNextBool(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeInt decodes
-func (dec *Decoder) DecodeInt(b []byte) (d int, r []byte, err error) {
+func (dec *Decoder) DecodeInt(b []byte) (d int, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				d = 0
-				r = nil
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	d, r = dec.DecodeNextInt(b)
+	c := dec.Copy(b)
+	var r []byte
+	d, r = dec.DecodeNextInt(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeInt8 decodes
-func (dec *Decoder) DecodeInt8(b []byte) (d int8, r []byte, err error) {
+func (dec *Decoder) DecodeInt8(b []byte) (d int8, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				d = 0
-				r = nil
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	d, r = dec.DecodeNextInt8(b)
+	c := dec.Copy(b)
+	var r []byte
+	d, r = dec.DecodeNextInt8(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeInt16 decodes
-func (dec *Decoder) DecodeInt16(b []byte) (d int16, r []byte, err error) {
+func (dec *Decoder) DecodeInt16(b []byte) (d int16, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				d = 0
-				r = nil
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	d, r = dec.DecodeNextInt16(b)
+	c := dec.Copy(b)
+	var r []byte
+	d, r = dec.DecodeNextInt16(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeInt32 decodes
-func (dec *Decoder) DecodeInt32(b []byte) (d int32, r []byte, err error) {
+func (dec *Decoder) DecodeInt32(b []byte) (d int32, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				d = 0
-				r = nil
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	d, r = dec.DecodeNextInt32(b)
+	c := dec.Copy(b)
+	var r []byte
+	d, r = dec.DecodeNextInt32(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeInt64 decodes
-func (dec *Decoder) DecodeInt64(b []byte) (d int64, r []byte, err error) {
+func (dec *Decoder) DecodeInt64(b []byte) (d int64, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				d = 0
-				r = nil
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	d, r = dec.DecodeNextInt64(b)
+	c := dec.Copy(b)
+	var r []byte
+	d, r = dec.DecodeNextInt64(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeUint decodes
-func (dec *Decoder) DecodeUint(b []byte) (d uint, r []byte, err error) {
+func (dec *Decoder) DecodeUint(b []byte) (d uint, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				d = 0
-				r = nil
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	d, r = dec.DecodeNextUint(b)
+	c := dec.Copy(b)
+	var r []byte
+	d, r = dec.DecodeNextUint(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeUint8 decodes
-func (dec *Decoder) DecodeUint8(b []byte) (d uint8, r []byte, err error) {
+func (dec *Decoder) DecodeUint8(b []byte) (d uint8, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				d = 0
-				r = nil
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	d, r = dec.DecodeNextUint8(b)
+	c := dec.Copy(b)
+	var r []byte
+	d, r = dec.DecodeNextUint8(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeUint16 decodes
-func (dec *Decoder) DecodeUint16(b []byte) (d uint16, r []byte, err error) {
+func (dec *Decoder) DecodeUint16(b []byte) (d uint16, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				d = 0
-				r = nil
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	d, r = dec.DecodeNextUint16(b)
+	c := dec.Copy(b)
+	var r []byte
+	d, r = dec.DecodeNextUint16(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeUint32 decodes
-func (dec *Decoder) DecodeUint32(b []byte) (d uint32, r []byte, err error) {
+func (dec *Decoder) DecodeUint32(b []byte) (d uint32, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				d = 0
-				r = nil
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	d, r = dec.DecodeNextUint32(b)
+	c := dec.Copy(b)
+	var r []byte
+	d, r = dec.DecodeNextUint32(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeUint64 decodes
-func (dec *Decoder) DecodeUint64(b []byte) (d uint64, r []byte, err error) {
+func (dec *Decoder) DecodeUint64(b []byte) (d uint64, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				d = 0
-				r = nil
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	d, r = dec.DecodeNextUint64(b)
+	c := dec.Copy(b)
+	var r []byte
+	d, r = dec.DecodeNextUint64(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeStringSlice decodes
-func (dec *Decoder) DecodeStringSlice(bb []byte) (dd []string, r []byte, err error) {
+func (dec *Decoder) DecodeStringSlice(bb []byte) (dd []string, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				dd = nil
-				r = bb
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	dd, r = dec.DecodeNextStringSlice(bb)
+	c := dec.Copy(bb)
+	var r []byte
+	dd, r = dec.DecodeNextStringSlice(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeIntSlice decodes
-func (dec *Decoder) DecodeIntSlice(bb []byte) (dd []int, r []byte, err error) {
+func (dec *Decoder) DecodeIntSlice(bb []byte) (dd []int, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				dd = nil
-				r = bb
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	dd, r = dec.DecodeNextIntSlice(bb)
+	c := dec.Copy(bb)
+	var r []byte
+	dd, r = dec.DecodeNextIntSlice(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeInt8Slice decodes
-func (dec *Decoder) DecodeInt8Slice(bb []byte) (dd []int8, r []byte, err error) {
+func (dec *Decoder) DecodeInt8Slice(bb []byte) (dd []int8, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				dd = nil
-				r = bb
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	dd, r = dec.DecodeNextInt8Slice(bb)
+	c := dec.Copy(bb)
+	var r []byte
+	dd, r = dec.DecodeNextInt8Slice(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeInt16Slice decodes
-func (dec *Decoder) DecodeInt16Slice(bb []byte) (dd []int16, r []byte, err error) {
+func (dec *Decoder) DecodeInt16Slice(bb []byte) (dd []int16, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				dd = nil
-				r = bb
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	dd, r = dec.DecodeNextInt16Slice(bb)
+	c := dec.Copy(bb)
+	var r []byte
+	dd, r = dec.DecodeNextInt16Slice(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeInt32Slice decodes
-func (dec *Decoder) DecodeInt32Slice(bb []byte) (dd []int32, r []byte, err error) {
+func (dec *Decoder) DecodeInt32Slice(bb []byte) (dd []int32, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				dd = nil
-				r = bb
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	dd, r = dec.DecodeNextInt32Slice(bb)
+	c := dec.Copy(bb)
+	var r []byte
+	dd, r = dec.DecodeNextInt32Slice(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeInt64Slice decodes
-func (dec *Decoder) DecodeInt64Slice(bb []byte) (dd []int64, r []byte, err error) {
+func (dec *Decoder) DecodeInt64Slice(bb []byte) (dd []int64, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				dd = nil
-				r = bb
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	dd, r = dec.DecodeNextInt64Slice(bb)
+	c := dec.Copy(bb)
+	var r []byte
+	dd, r = dec.DecodeNextInt64Slice(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeUintSlice decodes
-func (dec *Decoder) DecodeUintSlice(bb []byte) (dd []uint, r []byte, err error) {
+func (dec *Decoder) DecodeUintSlice(bb []byte) (dd []uint, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				dd = nil
-				r = bb
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	dd, r = dec.DecodeNextUintSlice(bb)
+	c := dec.Copy(bb)
+	var r []byte
+	dd, r = dec.DecodeNextUintSlice(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeUint8Slice decodes
-func (dec *Decoder) DecodeUint8Slice(bb []byte) (dd []uint8, r []byte, err error) {
+func (dec *Decoder) DecodeUint8Slice(bb []byte) (dd []uint8, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				dd = nil
-				r = bb
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	dd, r = dec.DecodeNextUint8Slice(bb)
+	c := dec.Copy(bb)
+	var r []byte
+	dd, r = dec.DecodeNextUint8Slice(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeUint16Slice decodes
-func (dec *Decoder) DecodeUint16Slice(bb []byte) (dd []uint16, r []byte, err error) {
+func (dec *Decoder) DecodeUint16Slice(bb []byte) (dd []uint16, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				dd = nil
-				r = bb
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	dd, r = dec.DecodeNextUint16Slice(bb)
+	c := dec.Copy(bb)
+	var r []byte
+	dd, r = dec.DecodeNextUint16Slice(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeUint32Slice decodes
-func (dec *Decoder) DecodeUint32Slice(bb []byte) (dd []uint32, r []byte, err error) {
+func (dec *Decoder) DecodeUint32Slice(bb []byte) (dd []uint32, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				dd = nil
-				r = bb
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	dd, r = dec.DecodeNextUint32Slice(bb)
+	c := dec.Copy(bb)
+	var r []byte
+	dd, r = dec.DecodeNextUint32Slice(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeUint64Slice decodes
-func (dec *Decoder) DecodeUint64Slice(bb []byte) (dd []uint64, r []byte, err error) {
+func (dec *Decoder) DecodeUint64Slice(bb []byte) (dd []uint64, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
 				dd = nil
-				r = bb
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	dd, r = dec.DecodeNextUint64Slice(bb)
+	c := dec.Copy(bb)
+	var r []byte
+	dd, r = dec.DecodeNextUint64Slice(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
 	return
 }
 
 // DecodeBinaryUnmarshaler decodes
-func (dec *Decoder) DecodeBinaryUnmarshaler(b []byte, dest encoding.BinaryUnmarshaler) (r []byte, err error) {
+func (dec *Decoder) DecodeBinaryUnmarshaler(b []byte, dest encoding.BinaryUnmarshaler) (err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
-				r = nil
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	return dec.DecodeNextBinaryUnmarshaler(b, dest), nil
+	c := dec.Copy(b)
+	r := dec.DecodeNextBinaryUnmarshaler(c, dest)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
+	return
 }
 
 // DecodeTextUnmarshaler decodes
-func (dec *Decoder) DecodeTextUnmarshaler(b []byte, dest encoding.TextUnmarshaler) (r []byte, err error) {
+func (dec *Decoder) DecodeTextUnmarshaler(b []byte, dest encoding.TextUnmarshaler) (err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			if re, ok := rec.(error); ok {
-				r = nil
 				err = re
 			} else {
-				log.Panic(r)
+				log.Panic(re)
 			}
 		}
 	}()
-	return dec.DecodeNextTextUnmarshaler(b, dest), nil
+	c := dec.Copy(b)
+	r := dec.DecodeNextTextUnmarshaler(c, dest)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
+	return
 }
 
 // DecodeNextList gets the next list
-func (dec *Decoder) DecodeNextList(b []byte, builder func([]byte)) []byte {
+func (dec *Decoder) DecodeNextList(b []byte, builder func([]byte) []byte) (r []byte) {
 	item := dec.nextItem(b)
 	if item.Typ != RlpList {
 		panic(ErrInvalidData)
 	}
-	r := b[item.Offset+item.Len:]
-	builder(dec.substr(b, item.Offset, item.Len))
-	return r
+	r = b[item.Offset+item.Len:]
+	lr := builder(dec.substr(b, item.Offset, item.Len))
+	if len(lr) > 0 {
+		panic(ErrInvalidData)
+	}
+	return
 }
 
 // DecodeNextBytes decodes
@@ -574,7 +708,7 @@ func (dec *Decoder) DecodeNextBytesSlice(bb []byte) (dd [][]byte, r []byte) {
 	// 17 is the size of a merkle node, which is
 	// the most common use case for a bytes slice
 	dd = dec.getByteSlice17()
-	r = dec.decodeListHelper(bb, func(buf []byte) {
+	r = dec.decodeSliceHelper(bb, func(buf []byte) {
 		dd = append(dd, buf)
 	})
 	return
@@ -715,7 +849,7 @@ func (dec *Decoder) DecodeNextUint64(b []byte) (d uint64, r []byte) {
 // DecodeNextStringSlice decodes
 func (dec *Decoder) DecodeNextStringSlice(bb []byte) (dd []string, r []byte) {
 	dd = make([]string, 0, 8)
-	r = dec.decodeListHelper(bb, func(buf []byte) {
+	r = dec.decodeSliceHelper(bb, func(buf []byte) {
 		dd = append(dd, dec.BytesToString(buf))
 	})
 	return
@@ -724,7 +858,7 @@ func (dec *Decoder) DecodeNextStringSlice(bb []byte) (dd []string, r []byte) {
 // DecodeNextBoolSlice decodes
 func (dec *Decoder) DecodeNextBoolSlice(bb []byte) (dd []bool, r []byte) {
 	dd = make([]bool, 0, 8)
-	r = dec.decodeListHelper(bb, func(buf []byte) {
+	r = dec.decodeSliceHelper(bb, func(buf []byte) {
 		dd = append(dd, dec.BytesToBool(buf))
 	})
 	return
@@ -733,7 +867,7 @@ func (dec *Decoder) DecodeNextBoolSlice(bb []byte) (dd []bool, r []byte) {
 // DecodeNextIntSlice decodes
 func (dec *Decoder) DecodeNextIntSlice(bb []byte) (dd []int, r []byte) {
 	dd = make([]int, 0, 8)
-	r = dec.decodeListHelper(bb, func(buf []byte) {
+	r = dec.decodeSliceHelper(bb, func(buf []byte) {
 		dd = append(dd, dec.BytesToInt(buf))
 	})
 	return
@@ -742,7 +876,7 @@ func (dec *Decoder) DecodeNextIntSlice(bb []byte) (dd []int, r []byte) {
 // DecodeNextInt8Slice decodes
 func (dec *Decoder) DecodeNextInt8Slice(bb []byte) (dd []int8, r []byte) {
 	dd = make([]int8, 0, 8)
-	r = dec.decodeListHelper(bb, func(buf []byte) {
+	r = dec.decodeSliceHelper(bb, func(buf []byte) {
 		dd = append(dd, dec.BytesToInt8(buf))
 	})
 	return
@@ -751,7 +885,7 @@ func (dec *Decoder) DecodeNextInt8Slice(bb []byte) (dd []int8, r []byte) {
 // DecodeNextInt16Slice decodes
 func (dec *Decoder) DecodeNextInt16Slice(bb []byte) (dd []int16, r []byte) {
 	dd = make([]int16, 0, 8)
-	r = dec.decodeListHelper(bb, func(buf []byte) {
+	r = dec.decodeSliceHelper(bb, func(buf []byte) {
 		dd = append(dd, dec.BytesToInt16(buf))
 	})
 	return
@@ -760,7 +894,7 @@ func (dec *Decoder) DecodeNextInt16Slice(bb []byte) (dd []int16, r []byte) {
 // DecodeNextInt32Slice decodes
 func (dec *Decoder) DecodeNextInt32Slice(bb []byte) (dd []int32, r []byte) {
 	dd = make([]int32, 0, 8)
-	r = dec.decodeListHelper(bb, func(buf []byte) {
+	r = dec.decodeSliceHelper(bb, func(buf []byte) {
 		dd = append(dd, dec.BytesToInt32(buf))
 	})
 	return
@@ -769,7 +903,7 @@ func (dec *Decoder) DecodeNextInt32Slice(bb []byte) (dd []int32, r []byte) {
 // DecodeNextInt64Slice decodes
 func (dec *Decoder) DecodeNextInt64Slice(bb []byte) (dd []int64, r []byte) {
 	dd = make([]int64, 0, 8)
-	r = dec.decodeListHelper(bb, func(buf []byte) {
+	r = dec.decodeSliceHelper(bb, func(buf []byte) {
 		dd = append(dd, dec.BytesToInt64(buf))
 	})
 	return
@@ -778,7 +912,7 @@ func (dec *Decoder) DecodeNextInt64Slice(bb []byte) (dd []int64, r []byte) {
 // DecodeNextUintSlice decodes
 func (dec *Decoder) DecodeNextUintSlice(bb []byte) (dd []uint, r []byte) {
 	dd = make([]uint, 0, 8)
-	r = dec.decodeListHelper(bb, func(buf []byte) {
+	r = dec.decodeSliceHelper(bb, func(buf []byte) {
 		dd = append(dd, dec.BytesToUint(buf))
 	})
 	return
@@ -792,7 +926,7 @@ func (dec *Decoder) DecodeNextUint8Slice(bb []byte) (dd []uint8, r []byte) {
 // DecodeNextUint16Slice decodes
 func (dec *Decoder) DecodeNextUint16Slice(bb []byte) (dd []uint16, r []byte) {
 	dd = make([]uint16, 0, 8)
-	r = dec.decodeListHelper(bb, func(buf []byte) {
+	r = dec.decodeSliceHelper(bb, func(buf []byte) {
 		dd = append(dd, dec.BytesToUint16(buf))
 	})
 	return
@@ -801,7 +935,7 @@ func (dec *Decoder) DecodeNextUint16Slice(bb []byte) (dd []uint16, r []byte) {
 // DecodeNextUint32Slice decodes
 func (dec *Decoder) DecodeNextUint32Slice(bb []byte) (dd []uint32, r []byte) {
 	dd = make([]uint32, 0, 8)
-	r = dec.decodeListHelper(bb, func(buf []byte) {
+	r = dec.decodeSliceHelper(bb, func(buf []byte) {
 		dd = append(dd, dec.BytesToUint32(buf))
 	})
 	return
@@ -810,7 +944,7 @@ func (dec *Decoder) DecodeNextUint32Slice(bb []byte) (dd []uint32, r []byte) {
 // DecodeNextUint64Slice decodes
 func (dec *Decoder) DecodeNextUint64Slice(bb []byte) (dd []uint64, r []byte) {
 	dd = make([]uint64, 0, 8)
-	r = dec.decodeListHelper(bb, func(buf []byte) {
+	r = dec.decodeSliceHelper(bb, func(buf []byte) {
 		dd = append(dd, dec.BytesToUint64(buf))
 	})
 	return
@@ -957,6 +1091,20 @@ func (dec *Decoder) BytesToUint64(b []byte) uint64 {
 
 func (dec *Decoder) decode(b []byte, dest interface{}) (r []byte) {
 	switch dest.(type) {
+	case []interface{}:
+		item := dec.nextItem(b)
+		if item.Typ != RlpList {
+			panic(ErrInvalidData)
+		}
+		r = b[item.Offset+item.Len:]
+		lb := dec.substr(b, item.Offset, item.Len)
+		for _, d := range dest.([]interface{}) {
+			if len(lb) == 0 {
+				panic(ErrInvalidData)
+			}
+			lb = dec.decode(lb, d)
+		}
+		return
 	case *[]byte:
 		*dest.(*[]byte), r = dec.DecodeNextBytes(b)
 		return
@@ -1037,16 +1185,28 @@ func (dec *Decoder) decode(b []byte, dest interface{}) (r []byte) {
 	panic(ErrInvalidDest)
 }
 
-func (dec *Decoder) decodeList(bb []byte, dest ...interface{}) (r []byte) {
-	r = dec.DecodeNextList(bb, func(r []byte) {
-		for _, d := range dest {
-			r = dec.decode(r, d)
+func (dec *Decoder) decodeListHelper(bb []byte, iter func(buf []byte)) (r []byte) {
+	item := dec.nextItem(bb)
+	if item.Typ != RlpList {
+		panic(ErrInvalidData)
+	}
+	r = bb[item.Offset+item.Len:]
+	b := dec.substr(bb, item.Offset, item.Len)
+	for {
+		item = dec.nextItem(b)
+		if item.Typ == 0 {
+			break
 		}
-	})
+		if item.Typ != RlpStr {
+			panic(ErrInvalidData)
+		}
+		iter(dec.substr(b, item.Offset, item.Len))
+		b = b[item.Offset+item.Len:]
+	}
 	return
 }
 
-func (dec *Decoder) decodeListHelper(bb []byte, iter func(buf []byte)) (r []byte) {
+func (dec *Decoder) decodeSliceHelper(bb []byte, iter func(buf []byte)) (r []byte) {
 	item := dec.nextItem(bb)
 	if item.Typ != RlpList {
 		panic(ErrInvalidData)

@@ -1,5 +1,7 @@
 package types
 
+// TODO: add merkle root as type and export in `figdb` for use in `Account`, `Block`, etc
+
 // KeyStoreUpdate update represents a single update in a batch of updates
 type KeyStoreUpdate struct {
 	Key   []byte

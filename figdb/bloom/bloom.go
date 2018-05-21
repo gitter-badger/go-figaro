@@ -96,9 +96,10 @@ func Unmarshal(data []byte) (bloom *Bloom, err error) {
 
 	var locs uint64
 	var filterset []uint64
-	_ = dec.DecodeNextList(data, func(buf []byte) {
+	_ = dec.DecodeList(data, func(buf []byte) []byte {
 		locs, buf = dec.DecodeNextUint64(buf)
-		filterset, _ = dec.DecodeNextUint64Slice(buf)
+		filterset, buf = dec.DecodeNextUint64Slice(buf)
+		return buf
 	})
 	bloom = NewWithBitset(filterset, locs)
 	return
@@ -139,12 +140,11 @@ func (bl *Bloom) Marshal() (buf []byte, err error) {
 	enc := figbuf.EncoderPool.Get().(*figbuf.Encoder)
 	defer figbuf.EncoderPool.Put(enc)
 
-	buf = enc.EncodeNextList(nil, func(buf []byte) []byte {
+	return enc.EncodeList(func(buf []byte) []byte {
 		buf = enc.EncodeNextUint64(buf, bl.setLocs)
 		buf = enc.EncodeNextUint64Slice(buf, bl.bitset)
 		return buf
 	})
-	return buf, nil
 }
 
 // Clear resets the Bloom filter

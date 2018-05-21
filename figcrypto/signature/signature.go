@@ -16,14 +16,23 @@ import (
 	"github.com/figaro-tech/go-figaro/figcrypto/hash"
 )
 
+// Constants
 const (
-	cofactor = 1
+	AddressLen   = 25
+	SignatureLen = 65
+	CPubKeyLen   = 33
+	PubKeyLen    = 64
+	PrivKeyLen   = 32
+	cofactor     = 1
 )
 
-// Errors used in package
 var (
-	version       = []byte{0x00} // Using different versions for different nets means addresses won't cross-validate
+	// ErrInvalidKey is a self-explantory error
 	ErrInvalidKey = errors.New("figcrypto signature: invalid public or private key")
+	// Using different versions for different nets means addresses won't
+	// cross-validate. Override this with 1-byte hex encoded env var
+	// `ADDRESS_VERSION_CODE`
+	version = []byte{0x00}
 )
 
 func init() {
@@ -60,7 +69,7 @@ func PublicKeyFromPrivateKey(privkey32 []byte) (pubkey33 []byte, err error) {
 
 // AddressFromPublicKey creates an human-readable address from a public key, following the Bitcoin address protocol.
 func AddressFromPublicKey(pubkey33 []byte) (address []byte, err error) {
-	if len(pubkey33) != 33 {
+	if len(pubkey33) != CPubKeyLen {
 		err = ErrInvalidKey
 		return
 	}
@@ -77,7 +86,7 @@ func AddressFromPublicKey(pubkey33 []byte) (address []byte, err error) {
 // SignerFromPrivateKey hydrates a *ecsda.PrivateKey from private key bytes for use
 // when a Go `crypto.Signer` is needed.
 func SignerFromPrivateKey(privkey32 []byte) (*ecdsa.PrivateKey, error) {
-	if len(privkey32) != 32 {
+	if len(privkey32) != PrivKeyLen {
 		return nil, ErrInvalidKey
 	}
 	c := elliptic.P256()
@@ -150,7 +159,7 @@ func SignWithKey(privkey *ecdsa.PrivateKey, message []byte) (signature []byte, e
 		pub, err = recover(r, s, h, uint(i), true)
 		if err == nil && pub.X.Cmp(privkey.X) == 0 && pub.Y.Cmp(privkey.Y) == 0 {
 			signature = make([]byte, 1, 2*curve.BitSize/8+1)
-			signature[0] = byte(i)
+			signature[0] = byte(i + 27)
 			signature = append(signature, makeLen(r.Bytes(), curvelen)...)
 			signature = append(signature, makeLen(s.Bytes(), curvelen)...)
 			return
@@ -160,28 +169,9 @@ func SignWithKey(privkey *ecdsa.PrivateKey, message []byte) (signature []byte, e
 	return
 }
 
-// Identify determines the address that signed a message
-func Identify(signature, message []byte) (address []byte) {
-	if len(signature) != 65 {
-		return
-	}
-	v := uint(signature[0])
-	sig := signature[1:]
-	rbytes, sbytes := sig[:len(sig)/2], sig[len(sig)/2:]
-	r, s := new(big.Int).SetBytes(rbytes), new(big.Int).SetBytes(sbytes)
-	h := hash.Hash256(message)
-	key, err := recover(r, s, h, v, false)
-	if err != nil {
-		return
-	}
-	b, _ := CompactEncodePublicKey64(pubKeyToBytes(key))
-	address, _ = AddressFromPublicKey(b)
-	return
-}
-
 // Verify verifies that a message was signed by the owner of the compact encoded public key
 func Verify(pubkey33, signature, message []byte) bool {
-	if len(pubkey33) != 33 {
+	if len(pubkey33) != CPubKeyLen {
 		return false
 	}
 	b, err := CompactDecodePublicKey33(pubkey33)
@@ -194,7 +184,17 @@ func Verify(pubkey33, signature, message []byte) bool {
 
 // VerifyWithAddress verifies that a message was signed by the owner of the address
 func VerifyWithAddress(address, signature, message []byte) bool {
-	a := Identify(signature, message)
+	if len(address) != AddressLen {
+		return false
+	}
+	if len(signature) != SignatureLen {
+		return false
+	}
+	v := uint(signature[0] - 27)
+	sig := signature[1:]
+	rbytes, sbytes := sig[:len(sig)/2], sig[len(sig)/2:]
+	r, s := new(big.Int).SetBytes(rbytes), new(big.Int).SetBytes(sbytes)
+	a := recoverAddress(r, s, v, message)
 	if len(a) == 0 {
 		return false
 	}
@@ -203,7 +203,7 @@ func VerifyWithAddress(address, signature, message []byte) bool {
 
 // VerifyWithKey verifies that a message was signed by the owner of the public key
 func VerifyWithKey(pub *ecdsa.PublicKey, signature, message []byte) bool {
-	if len(signature) != 65 {
+	if len(signature) != SignatureLen {
 		return false
 	}
 	sig := signature[1:]
@@ -217,7 +217,7 @@ func VerifyWithKey(pub *ecdsa.PublicKey, signature, message []byte) bool {
 // use the 33-byte public key. These methods are provided as a convenience
 // for functionality that requires the full 64-byte public key.
 func CompactEncodePublicKey64(pubkey64 []byte) (pubkey33 []byte, err error) {
-	if len(pubkey64) != 64 {
+	if len(pubkey64) != PubKeyLen {
 		err = ErrInvalidKey
 		return
 	}
@@ -234,7 +234,7 @@ func CompactEncodePublicKey64(pubkey64 []byte) (pubkey33 []byte, err error) {
 // use the 33-byte public key. These methods are provided as a convenience
 // for functionality that requires the full 64-byte public key.
 func CompactDecodePublicKey33(pubkey33 []byte) (pubkey64 []byte, err error) {
-	if len(pubkey33) != 33 {
+	if len(pubkey33) != CPubKeyLen {
 		err = ErrInvalidKey
 		return
 	}
@@ -257,6 +257,17 @@ func pubKeyToBytes(pubkey *ecdsa.PublicKey) (pubkey64 []byte) {
 	x := makeLen(pubkey.X.Bytes(), 32)
 	y := makeLen(pubkey.Y.Bytes(), 32)
 	return append(x, y...)
+}
+
+func recoverAddress(r, s *big.Int, v uint, message []byte) (address []byte) {
+	h := hash.Hash256(message)
+	key, err := recover(r, s, h, v, true)
+	if err != nil {
+		return
+	}
+	b, _ := CompactEncodePublicKey64(pubKeyToBytes(key))
+	address, _ = AddressFromPublicKey(b)
+	return
 }
 
 // Based on SEC 1 Ver 2.0 Sec. 4.1.6

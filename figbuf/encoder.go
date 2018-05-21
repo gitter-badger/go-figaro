@@ -41,13 +41,42 @@ type Encoder struct {
 //
 // Returned values from Encoder are only safe to use during the function
 // that called them and only until the encoder is used again
-func (enc *Encoder) Encode(d ...interface{}) ([]byte, error) {
-	buf := enc.buf[:0]
-	b, err := enc.EncodeNext(buf, d...)
-	if err != nil {
-		return nil, err
+func (enc *Encoder) Encode(d ...interface{}) (buf []byte, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if re, ok := r.(error); ok {
+				err = re
+			} else {
+				log.Panic(r)
+			}
+		}
+	}()
+	if len(d) == 0 {
+		return
 	}
-	return b, nil
+	buf = enc.buf[:0]
+	if len(d) == 1 {
+		buf = enc.encode(buf, d[0])
+	} else {
+		buf = enc.encode(buf, d)
+	}
+	return
+}
+
+// EncodeList RLP encodes a list, calling builder for encoding of each item
+func (enc *Encoder) EncodeList(builder func([]byte) []byte) (b []byte, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if re, ok := r.(error); ok {
+				err = re
+			} else {
+				log.Panic(r)
+			}
+		}
+	}()
+	buf := enc.buf[:0]
+	b = enc.EncodeNextList(buf, builder)
+	return
 }
 
 // EncodeBytes RLP encodes
@@ -232,26 +261,6 @@ func (enc *Encoder) EncodeTextMarshaler(d encoding.TextMarshaler) (buf []byte, e
 	buf = enc.buf[:]
 	buf = enc.EncodeNextTextMarshaler(buf, d)
 	return
-}
-
-// EncodeNext RLP encodes
-func (enc *Encoder) EncodeNext(buf []byte, d ...interface{}) (b []byte, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			if re, ok := r.(error); ok {
-				err = re
-			} else {
-				log.Panic(r)
-			}
-		}
-	}()
-	if len(d) == 0 {
-		return nil, nil
-	}
-	if len(d) == 1 {
-		return enc.encode(buf, d[0]), nil
-	}
-	return enc.encodeList(buf, d), nil
 }
 
 // EncodeNextList RLP encodes
@@ -599,7 +608,12 @@ func (enc *Encoder) Uint64ToBytes(d uint64) []byte {
 func (enc *Encoder) encode(buf []byte, d interface{}) []byte {
 	switch d.(type) {
 	case []interface{}:
-		return enc.encodeList(buf, d.([]interface{}))
+		return enc.encodeListHelper(buf, func(buf []byte) []byte {
+			for _, i := range d.([]interface{}) {
+				buf = enc.encode(buf, i)
+			}
+			return buf
+		})
 	case []byte:
 		return enc.EncodeNextBytes(buf, d.([]byte))
 	case [][]byte:
@@ -654,15 +668,6 @@ func (enc *Encoder) encode(buf []byte, d interface{}) []byte {
 		return enc.EncodeNextTextMarshaler(buf, d.(encoding.TextMarshaler))
 	}
 	panic(ErrInvalidType)
-}
-
-func (enc *Encoder) encodeList(buf []byte, dd []interface{}) []byte {
-	return enc.encodeListHelper(buf, func(buf []byte) []byte {
-		for _, d := range dd {
-			buf = enc.encode(buf, d)
-		}
-		return buf
-	})
 }
 
 func (enc *Encoder) encodeRLPString(buf []byte, s []byte) []byte {

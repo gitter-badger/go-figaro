@@ -879,34 +879,6 @@ func TestEncoder_EncodeTextMarshaler(t *testing.T) {
 	}
 }
 
-func TestEncoder_EncodeNext(t *testing.T) {
-	type args struct {
-		buf []byte
-		d   []interface{}
-	}
-	tests := []struct {
-		name    string
-		enc     *figbuf.Encoder
-		args    args
-		wantB   []byte
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotB, err := tt.enc.EncodeNext(tt.args.buf, tt.args.d...)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Encoder.EncodeNext() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(gotB, tt.wantB) {
-				t.Errorf("Encoder.EncodeNext() = %#x, want %#x", gotB, tt.wantB)
-			}
-		})
-	}
-}
-
 func TestEncoder_EncodeNextList(t *testing.T) {
 	type args struct {
 		buf     []byte
