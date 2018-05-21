@@ -13,7 +13,7 @@ import (
 var ErrInvalidAddressData = errors.New("figaro address: invalid data")
 
 // An Address a unique address used for accounts.
-type Address [signature.AddressLen]byte
+type Address [signature.AddressSize]byte
 
 // NewAddressFromHuman is a convenience helper to create an address from a Base58 encoded string.
 func NewAddressFromHuman(humaddr string) (address *Address, err error) {
@@ -36,7 +36,7 @@ func (addr Address) Hex() string { return hex.EncodeToString(addr.Bytes()) }
 
 // SetBytes sets an address from bytes.
 func (addr *Address) SetBytes(b []byte) error {
-	if len(b) != signature.AddressLen {
+	if len(b) != signature.AddressSize {
 		return ErrInvalidAddressData
 	}
 	copy(addr.Bytes(), b)
@@ -47,7 +47,7 @@ func (addr *Address) SetBytes(b []byte) error {
 func (addr *Address) SetHuman(humaddr string) error {
 	// TODO: validate the address
 	b := signature.ToBinaryAddress(humaddr)
-	if len(b) != signature.AddressLen {
+	if len(b) != signature.AddressSize {
 		return ErrInvalidAddressData
 	}
 	copy(addr.Bytes(), b)

@@ -41,12 +41,12 @@ func (tx Tx) TxID() (h []byte, err error) {
 }
 
 // Sign cryptographically signs a signature.
-func (tx *Tx) Sign(privkey32 []byte) error {
+func (tx *Tx) Sign(privkey []byte) error {
 	h, err := tx.TxID()
 	if err != nil {
 		return err
 	}
-	sig, err := signature.Sign(privkey32, h)
+	sig, err := signature.Sign(privkey, h)
 	if err != nil {
 		return err
 	}
@@ -54,17 +54,14 @@ func (tx *Tx) Sign(privkey32 []byte) error {
 	return nil
 }
 
-// VerifySignature verifies the address that signed the transaction. It returns
+// Verify verifies the address that signed the transaction. It returns
 // false if the transaction is not signed.
-func (tx Tx) VerifySignature() bool {
-	if len(tx.Signature) != signature.SignatureLen {
-		return false
-	}
+func (tx Tx) Verify() bool {
 	h, err := tx.TxID()
 	if err != nil {
 		return false
 	}
-	return signature.VerifyWithAddress(tx.From.Bytes(), tx.Signature, h)
+	return signature.Verify(tx.From.Bytes(), tx.Signature, h)
 }
 
 // Encode deterministically encodes a transaction to binary format.

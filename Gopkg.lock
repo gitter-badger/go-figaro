@@ -630,6 +630,8 @@
     "blake2b",
     "blake2s",
     "blowfish",
+    "ed25519",
+    "ed25519/internal/edwards25519",
     "ripemd160",
     "sha3"
   ]
@@ -684,6 +686,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c938c27091a82cea2d1e0e4e0fbb20ecf0b625d594ea72f92657d35794cfa1c1"
+  inputs-digest = "273ed23e84f63fe234fba52da60eb9d4d4e11ca8211ff5fa912f922e4f1057e6"
   solver-name = "gps-cdcl"
   solver-version = 1
