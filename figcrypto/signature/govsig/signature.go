@@ -1,5 +1,6 @@
-// Package ecdsa provides cryptographic functions
-package ecdsa
+// Package govsig provides cryptographic functions. It implements an implementation of
+// of recoverable ECDSA signatures using Curve P-256.
+package govsig
 
 import (
 	"bytes"
@@ -17,45 +18,51 @@ import (
 
 // Constants
 const (
-	AddressSize    = common.AddressSize
-	SignatureSize  = 65
-	PublicKeySize  = 33
-	PrivateKeySize = 32
-	lPublicKeySize = 64
-	cofactor       = 1
+	AddressSize               = common.AddressSize
+	SignatureSize             = 65
+	PublicKeySize             = 33
+	DecompressedPublicKeySize = 65
+	PrivateKeySize            = 32
+	cofactor                  = 1
 )
 
-// CompactEncodePublicKey64 compacts encodes a 64-byte public key into
-// a 33-byte public key that is recoverable. All functions in this package
-// use the 33-byte public key. These methods are provided as a convenience
-// for functionality that requires the full 64-byte public key.
-func CompactEncodePublicKey64(pubkey64 []byte) (pubkey33 []byte, err error) {
-	if len(pubkey64) != lPublicKeySize {
-		err = common.ErrInvalidKey
-		return
-	}
-	key := bytesToPubKey(pubkey64)
-	b := makeLen(key.X.Bytes(), 32)
-	pubkey33 = make([]byte, 1, len(b)+1)
-	pubkey33[0] = byte(key.Y.Bit(0))
-	pubkey33 = append(pubkey33, b...)
-	return
+// ToHumanAddress converts a binary address to a Base58 encoded "human readable" address
+func ToHumanAddress(binaddr []byte) string {
+	return common.ToHumanAddress(binaddr)
 }
 
-// CompactDecodePublicKey33 compact decodes a 33-byte public key into
-// a 64-byte public key. All functions in this package
-// use the 33-byte public key. These methods are provided as a convenience
-// for functionality that requires the full 64-byte public key.
-func CompactDecodePublicKey33(pubkey33 []byte) (pubkey64 []byte, err error) {
-	if len(pubkey33) != PublicKeySize {
-		err = common.ErrInvalidKey
-		return
+// ToBinaryAddress converts a Base58 encoded "human readable" address to a binary address
+func ToBinaryAddress(humaddr string) []byte {
+	return common.ToBinaryAddress(humaddr)
+}
+
+// DecompressPubkey parses a public key in the 33-byte compressed format.
+func DecompressPubkey(pubkey []byte) ([]byte, error) {
+	if len(pubkey) != PublicKeySize {
+		return nil, common.ErrInvalidKey
 	}
-	sign, pubkey32 := uint(pubkey33[0]), pubkey33[1:]
-	x := new(big.Int).SetBytes(pubkey32)
-	y := decompressPoint(elliptic.P256().Params(), x, sign)
-	pubkey64 = append(makeLen(x.Bytes(), 32), makeLen(y.Bytes(), 32)...)
-	return
+	x := new(big.Int).SetBytes(pubkey[1:])
+	y := decompressPoint(elliptic.P256().Params(), x, uint(pubkey[0]&1))
+	if x == nil {
+		return nil, common.ErrInvalidKey
+	}
+	return marshal(x, y), nil
+}
+
+// CompressPubkey encodes a public key to the 33-byte compressed format.
+func CompressPubkey(pubkey []byte) ([]byte, error) {
+	if len(pubkey) != DecompressedPublicKeySize {
+		return nil, common.ErrInvalidKey
+	}
+	x, y := unmarshal(pubkey)
+	cpk := make([]byte, 33)
+	if y.Bit(0)&1 == 0 {
+		cpk[0] = 02
+	} else {
+		cpk[0] = 03
+	}
+	copy(cpk[1:], x.Bytes())
+	return cpk, nil
 }
 
 // GenerateKey generates an public/private key pair, along with an address,
@@ -71,7 +78,7 @@ func GenerateKey(rando io.Reader) (privkey, pubkey, address []byte, err error) {
 		return
 	}
 	privkey = key.D.Bytes()
-	pubkey, err = CompactEncodePublicKey64(pubKeyToBytes(&key.PublicKey))
+	pubkey, _ = CompressPubkey(marshal(key.X, key.Y))
 	address = common.AddressFromPublicKey(pubkey)
 	return
 }
@@ -95,8 +102,25 @@ func RecoverFromPrivateKey(privkey []byte) (pubkey, address []byte, err error) {
 	}
 	c := elliptic.P256()
 	x, y := c.ScalarBaseMult(privkey)
-	b := append(makeLen(x.Bytes(), 32), makeLen(y.Bytes(), 32)...)
-	pubkey, err = CompactEncodePublicKey64(b)
+	pubkey, _ = CompressPubkey(marshal(x, y))
+	address = common.AddressFromPublicKey(pubkey)
+	return
+}
+
+// RecoverFromSignature gets an address which can verify transactions from a signature and message.
+func RecoverFromSignature(signature, message []byte) (pubkey, address []byte, err error) {
+	if len(signature) != SignatureSize {
+		return nil, nil, common.ErrInvalidSignature
+	}
+	h := hash.Hash256(message)
+	r := signature[:(SignatureSize-1)/2]
+	s := signature[(SignatureSize-1)/2 : SignatureSize-1]
+	v := signature[SignatureSize-1]
+	key, err := recover(new(big.Int).SetBytes(r), new(big.Int).SetBytes(s), h, uint(v), false)
+	if err != nil {
+		return nil, nil, err
+	}
+	pubkey, _ = CompressPubkey(marshal(key.X, key.Y))
 	address = common.AddressFromPublicKey(pubkey)
 	return
 }
@@ -117,25 +141,40 @@ func SignerFromPrivateKey(privkey []byte) (crypto.Signer, error) {
 
 // Sign signs the message using the private key
 func Sign(privkey, message []byte) (signature []byte, err error) {
-	var key crypto.Signer
-	key, err = SignerFromPrivateKey(privkey)
-	if err != nil {
-		return
+	if len(privkey) != PrivateKeySize {
+		return nil, common.ErrInvalidKey
 	}
-	return signWithKey(key.(*ecdsa.PrivateKey), message)
+	key, err := SignerFromPrivateKey(privkey)
+	if err != nil {
+		return nil, err
+	}
+	return sign(key.(*ecdsa.PrivateKey), message)
 }
 
 // Verify verifies that a message was signed by the owner of the compact encoded public key.
 func Verify(pubkey, signature, message []byte) bool {
-	if len(pubkey) != PublicKeySize {
+	if len(signature) != SignatureSize {
 		return false
 	}
-	b, err := CompactDecodePublicKey33(pubkey)
-	if err != nil {
+	if len(pubkey) != PublicKeySize && len(pubkey) != DecompressedPublicKeySize {
 		return false
 	}
-	key := bytesToPubKey(b)
-	return verifyWithKey(key, signature, message)
+	var x, y *big.Int
+	if len(pubkey) == PublicKeySize {
+		key, err := DecompressPubkey(pubkey)
+		if err != nil {
+			return false
+		}
+		x, y = elliptic.Unmarshal(elliptic.P256(), key)
+	} else {
+		x, y = elliptic.Unmarshal(elliptic.P256(), pubkey)
+	}
+	key := &ecdsa.PublicKey{
+		Curve: elliptic.P256(),
+		X:     x,
+		Y:     y,
+	}
+	return verify(key, signature, message)
 }
 
 // VerifyAddress verifies that the public key is valid for the address.
@@ -152,37 +191,28 @@ func VerifyWithAddress(address, signature, message []byte) bool {
 	if len(address) != AddressSize {
 		return false
 	}
-	if len(signature) != SignatureSize {
+	_, rec, err := RecoverFromSignature(signature, message)
+	if err != nil {
 		return false
 	}
-	v := uint(signature[0] - 27)
-	sig := signature[1:]
-	rbytes, sbytes := sig[:len(sig)/2], sig[len(sig)/2:]
-	r, s := new(big.Int).SetBytes(rbytes), new(big.Int).SetBytes(sbytes)
-	a := recoverAddress(r, s, v, message)
-	if len(a) == 0 {
-		return false
-	}
-	return bytes.Equal(a, address)
+	return bytes.Equal(address, rec)
 }
 
-func signWithKey(privkey *ecdsa.PrivateKey, message []byte) (signature []byte, err error) {
+func sign(privkey *ecdsa.PrivateKey, message []byte) (signature []byte, err error) {
 	h := hash.Hash256(message)
 	var r, s *big.Int
 	r, s, err = ecdsa.Sign(rand.Reader, privkey, h)
 	if err != nil {
 		return
 	}
-	curve := privkey.Curve.Params()
-	curvelen := (curve.BitSize + 7) / 8
 	var pub *ecdsa.PublicKey
 	for i := 0; i < (cofactor+1)*2; i++ {
 		pub, err = recover(r, s, h, uint(i), true)
 		if err == nil && pub.X.Cmp(privkey.X) == 0 && pub.Y.Cmp(privkey.Y) == 0 {
-			signature = make([]byte, 1, 2*curve.BitSize/8+1)
-			signature[0] = byte(i + 27)
-			signature = append(signature, makeLen(r.Bytes(), curvelen)...)
-			signature = append(signature, makeLen(s.Bytes(), curvelen)...)
+			signature = make([]byte, 0, 65)
+			signature = append(signature, r.Bytes()...)
+			signature = append(signature, s.Bytes()...)
+			signature = append(signature, byte(i))
 			return
 		}
 	}
@@ -190,38 +220,39 @@ func signWithKey(privkey *ecdsa.PrivateKey, message []byte) (signature []byte, e
 	return
 }
 
-func verifyWithKey(pub *ecdsa.PublicKey, signature, message []byte) bool {
+func verify(pub *ecdsa.PublicKey, signature, message []byte) bool {
 	if len(signature) != SignatureSize {
 		return false
 	}
-	sig := signature[1:]
+	sig := signature[:SignatureSize-1]
 	rbytes, sbytes := sig[:len(sig)/2], sig[len(sig)/2:]
 	h := hash.Hash256(message)
 	return ecdsa.Verify(pub, h, new(big.Int).SetBytes(rbytes), new(big.Int).SetBytes(sbytes))
 }
 
-func bytesToPubKey(pubkey64 []byte) *ecdsa.PublicKey {
-	return &ecdsa.PublicKey{
-		Curve: elliptic.P256(),
-		X:     new(big.Int).SetBytes(pubkey64[:32]),
-		Y:     new(big.Int).SetBytes(pubkey64[32:]),
-	}
+// Marshal converts a point into the form specified in section 4.3.6 of ANSI
+// X9.62.
+func marshal(x, y *big.Int) []byte {
+	byteLen := (elliptic.P256().Params().BitSize + 7) >> 3
+	ret := make([]byte, 1+2*byteLen)
+	ret[0] = 4 // uncompressed point flag
+	readBits(x, ret[1:1+byteLen])
+	readBits(y, ret[1+byteLen:])
+	return ret
 }
 
-func pubKeyToBytes(pubkey *ecdsa.PublicKey) (pubkey64 []byte) {
-	x := makeLen(pubkey.X.Bytes(), 32)
-	y := makeLen(pubkey.Y.Bytes(), 32)
-	return append(x, y...)
-}
-
-func recoverAddress(r, s *big.Int, v uint, message []byte) (address []byte) {
-	h := hash.Hash256(message)
-	key, err := recover(r, s, h, v, true)
-	if err != nil {
+// Unmarshal converts a point, serialised by Marshal, into an x, y pair. On
+// error, x = nil.
+func unmarshal(data []byte) (x, y *big.Int) {
+	byteLen := (elliptic.P256().Params().BitSize + 7) >> 3
+	if len(data) != 1+2*byteLen {
 		return
 	}
-	b, _ := CompactEncodePublicKey64(pubKeyToBytes(key))
-	address = common.AddressFromPublicKey(b)
+	if data[0] != 4 { // uncompressed form
+		return
+	}
+	x = new(big.Int).SetBytes(data[1 : 1+byteLen])
+	y = new(big.Int).SetBytes(data[1+byteLen:])
 	return
 }
 
@@ -321,13 +352,20 @@ func fieldElement(c elliptic.Curve, seed []byte) (k *big.Int) {
 	return
 }
 
-func makeLen(b []byte, l int) (result []byte) {
-	if len(b) > l {
-		panic("bytes exceed len")
+const (
+	// number of bits in a big.Word
+	wordBits = 32 << (uint64(^big.Word(0)) >> 63)
+	// number of bytes in a big.Word
+	wordBytes = wordBits / 8
+)
+
+func readBits(bigint *big.Int, buf []byte) {
+	i := len(buf)
+	for _, d := range bigint.Bits() {
+		for j := 0; j < wordBytes && i > 0; j++ {
+			i--
+			buf[i] = byte(d)
+			d >>= 8
+		}
 	}
-	if len(b) < l {
-		result = append(result, make([]byte, l-len(b))...)
-	}
-	result = append(result, b...)
-	return
 }

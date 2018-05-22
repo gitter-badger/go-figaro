@@ -15,6 +15,8 @@ const AddressSize = 25
 var (
 	// ErrInvalidKey is a self-explantory error
 	ErrInvalidKey = errors.New("figcrypto signature: invalid public or private key")
+	// ErrInvalidSignature is a self-explantory error
+	ErrInvalidSignature = errors.New("figcrypto signature: invalid signature")
 	// Using different versions for different nets means addresses won't
 	// cross-validate. Override this with 1-byte hex encoded env var
 	// `ADDRESS_VERSION_CODE`

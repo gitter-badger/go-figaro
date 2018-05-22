@@ -6,10 +6,9 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/figaro-tech/go-figaro/figcrypto/signature"
-
 	"github.com/figaro-tech/go-figaro/figbuf"
 	"github.com/figaro-tech/go-figaro/figcrypto/hash"
+	"github.com/figaro-tech/go-figaro/figcrypto/signature/fastsig"
 )
 
 // A TxCommit must be mined into a block.
@@ -46,7 +45,7 @@ func (tx *Tx) Sign(privkey []byte) error {
 	if err != nil {
 		return err
 	}
-	sig, err := signature.Sign(privkey, h)
+	sig, err := fastsig.Sign(privkey, h)
 	if err != nil {
 		return err
 	}
@@ -61,7 +60,7 @@ func (tx Tx) Verify() bool {
 	if err != nil {
 		return false
 	}
-	return signature.Verify(tx.From.Bytes(), tx.Signature, h)
+	return fastsig.Verify(tx.From.Bytes(), tx.Signature, h)
 }
 
 // Encode deterministically encodes a transaction to binary format.

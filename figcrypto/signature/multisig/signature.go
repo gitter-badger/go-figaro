@@ -1,5 +1,7 @@
-// Package ed25519 provides cryptographic functions
-package ed25519
+// Package multisig provides cryptographic functions
+package multisig
+
+// NOTE: multiig is a very much a work in progress
 
 import (
 	"bytes"
@@ -19,6 +21,16 @@ const (
 	SignatureSize  = ed25519.SignatureSize
 	PrivateKeySize = ed25519.PrivateKeySize
 )
+
+// ToHumanAddress converts a binary address to a Base58 encoded "human readable" address
+func ToHumanAddress(binaddr []byte) string {
+	return common.ToHumanAddress(binaddr)
+}
+
+// ToBinaryAddress converts a Base58 encoded "human readable" address to a binary address
+func ToBinaryAddress(humaddr string) []byte {
+	return common.ToBinaryAddress(humaddr)
+}
 
 // GenerateKey generates an public/private key pair, along with an address,
 // that can be used to sign and verify messages.
@@ -82,9 +94,4 @@ func VerifyAddress(publickey, address []byte) bool {
 	}
 	derived := common.AddressFromPublicKey(publickey)
 	return bytes.Equal(address, derived)
-}
-
-// VerifyWithAddress is not supported for ed25519.
-func VerifyWithAddress(address, signature, message []byte) bool {
-	panic("not supported for ed25519")
 }
