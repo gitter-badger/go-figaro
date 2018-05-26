@@ -173,7 +173,7 @@ func (bl *Block) AddTx(db FullChainDataService, tx *Transaction) (int, error) {
 	}
 	var newroot Root
 	var receipt *Receipt
-	if tx.Validate(db, cbig, bl.BlockHeader) {
+	if tx.Validate(db, bl.BlockHeader, cbig) {
 		newroot, receipt, err = tx.Execute(db, uint16(len(bl.Transactions)+1), bl.BlockHeader, cbig.BlockHeader)
 		if err != nil {
 			return 0, err
@@ -274,15 +274,15 @@ func (bl *Block) ValidateAndSync(db FullChainDataService, prev *BlockHeader, eng
 
 	// preallocate for some performance gain
 	btest.Commits = make([]Commit, 0, len(bl.Commits))
-	btest.Transactions = make([]*Transaction, len(bl.Transactions))
+	btest.Transactions = make([]*Transaction, 0, len(bl.Transactions))
 
 	// This will sync the block by reprocessing it locally
 	for _, c := range bl.Commits {
 		btest.AddCommit(c)
 	}
-	// for _, t := range bl.Transactions {
-	// btest.AddTx(db, t) // houston, we have a problem
-	// }
+	for _, t := range bl.Transactions {
+		btest.AddTx(db, t)
+	}
 	btest.Seal(db)
 	btest.Timestamp = bl.Timestamp
 	return reflect.DeepEqual(btest, bl)
@@ -414,12 +414,13 @@ func (bl *BlockHeader) Decode(buf []byte) error {
 
 // BlockLDataService implements limited local data blocks.
 type BlockLDataService interface {
-	SaveBlock(bl *Block) error
+	SaveBlockHeader(bl *BlockHeader) error
 	FetchBlockHeader(id BlockHash) (*BlockHeader, error)
 }
 
 // BlockDataService should save blocks directly into a key/value store.
 type BlockDataService interface {
+	SaveBlock(bl *Block) error
 	FetchCompBlock(id BlockHash) (*CompBlock, error)
 	FetchRefBlock(id BlockHash) (*RefBlock, error)
 	FetchBlock(id BlockHash) (*Block, error)

@@ -173,7 +173,7 @@ func (tx Transaction) Ordinal(db AccountFetchService, root Root) int {
 }
 
 // Validate returns whether the transaction will fail if it is processed as the next transaction.
-func (tx Transaction) Validate(db FullChainDataService, commmitBlock *BigBlock, block *BlockHeader) bool {
+func (tx Transaction) Validate(db FullChainDataService, block *BlockHeader, commmitBlock *BigBlock) bool {
 	fromAcc, err := db.FetchAccount(block.StateRoot, tx.From)
 	if err != nil {
 		log.Panic(err)
