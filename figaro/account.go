@@ -2,18 +2,21 @@
 package figaro
 
 import (
-	"math/big"
-
 	"github.com/figaro-tech/go-figaro/figbuf"
 )
+
+// MaxCodeSize is the max length, in bytes, of account code storage. This is
+// a network configuration value, and does not impact consensus or validation
+// of existing data.
+const MaxCodeSize = 24576
 
 // Account represents an account in Figaro
 type Account struct {
 	Address     Address
 	Nonce       uint64
-	Stake       *big.Int
-	Balance     *big.Int
-	StorageRoot []byte
+	Stake       uint64
+	Balance     uint64
+	StorageRoot Root
 	Code        []byte
 }
 
@@ -24,10 +27,10 @@ func (acc Account) Encode() ([]byte, error) {
 
 	return enc.EncodeList(func(buf []byte) []byte {
 		buf = enc.EncodeNextUint64(buf, acc.Nonce)
-		buf = enc.EncodeNextTextMarshaler(buf, acc.Stake)
-		buf = enc.EncodeNextTextMarshaler(buf, acc.Balance)
-		buf = enc.EncodeNextBytes(buf, acc.Code)
+		buf = enc.EncodeNextUint64(buf, acc.Stake)
+		buf = enc.EncodeNextUint64(buf, acc.Balance)
 		buf = enc.EncodeNextBytes(buf, acc.StorageRoot)
+		buf = enc.EncodeNextBytes(buf, acc.Code)
 		return buf
 	})
 }
@@ -37,28 +40,34 @@ func (acc *Account) Decode(buf []byte) error {
 	dec := figbuf.DecoderPool.Get().(*figbuf.Decoder)
 	defer figbuf.DecoderPool.Put(dec)
 
-	acc = &Account{}
 	return dec.DecodeList(buf, func(r []byte) []byte {
 		acc.Nonce, r = dec.DecodeNextUint64(r)
-		r = dec.DecodeNextTextUnmarshaler(r, acc.Stake)
-		r = dec.DecodeNextTextUnmarshaler(r, acc.Balance)
-		acc.Code, r = dec.DecodeNextBytes(r)
+		acc.Stake, r = dec.DecodeNextUint64(r)
+		acc.Balance, r = dec.DecodeNextUint64(r)
 		acc.StorageRoot, r = dec.DecodeNextBytes(r)
+		if !acc.StorageRoot.Valid() {
+			panic("storage root not valid")
+		}
+		acc.Code, r = dec.DecodeNextBytes(r)
 		return r
 	})
 }
 
-// AccountDataService should implement a Merkle database mapped to an account
-type AccountDataService interface {
-	// Account data services
-	SaveAccount(root []byte, account *Account) []byte
-	FetchAccount(root []byte, address Address) (*Account, error)
-	ProveAccount(root []byte, address Address) (*Account, [][][]byte, error)
-	ValidateAccount(root []byte, account *Account, proof [][][]byte) bool
+// AccountFetchService can retreive data from either the local database
+// or the p2p network.
+type AccountFetchService interface {
+	FetchAccount(root Root, address Address) (*Account, error)
+	ProveAccount(root Root, address Address) (*Account, [][][]byte, error)
+	ValidateAccount(root Root, account *Account, proof [][][]byte) bool
 
-	// Account storage data services
-	SaveAccountStorage(root []byte, account *Account, key, data []byte) []byte
 	FetchAccountStorage(account *Account, key []byte) ([]byte, error)
 	ProveAccountStorage(account *Account, key []byte) ([]byte, [][][]byte, error)
 	ValidateAccountStorage(account *Account, key, data []byte, proof [][][]byte) bool
+}
+
+// AccountDataService should implement a Merkle database mapped to an account.
+type AccountDataService interface {
+	AccountFetchService
+	SaveAccount(root Root, account *Account) Root
+	SaveAccountStorage(root Root, account *Account, key, data []byte) Root
 }

@@ -1,7 +1,5 @@
 // Copyright 2018 The Figaro Authors.
-// <License goes here>
 // Based on Google's Groupcache LRU https://github.com/golang/groupcache/blob/master/lru/lru.go
-
 /*
 Copyright 2013 Google Inc.
 
@@ -38,7 +36,7 @@ type LRU struct {
 
 type entry struct {
 	key   types.Key
-	value string
+	value interface{}
 }
 
 // NewLRU creates a new LRU. If maxEntries == 0, the cache
@@ -52,7 +50,7 @@ func NewLRU(maxEntries int) *LRU {
 }
 
 // Add adds a value to the cache.
-func (c *LRU) Add(key types.Key, value []byte) {
+func (c *LRU) Add(key types.Key, value interface{}) {
 	if c.MaxEntries == 0 {
 		return
 	}
@@ -65,10 +63,10 @@ func (c *LRU) Add(key types.Key, value []byte) {
 	}
 	if ee, ok := c.cache[key.String()]; ok {
 		c.ll.MoveToFront(ee)
-		ee.Value.(*entry).value = string(value)
+		ee.Value.(*entry).value = value
 		return
 	}
-	ele := c.ll.PushFront(&entry{key, string(value)})
+	ele := c.ll.PushFront(&entry{key, value})
 	c.cache[key.String()] = ele
 	if c.ll.Len() > c.MaxEntries {
 		c.RemoveOldest()
@@ -76,7 +74,7 @@ func (c *LRU) Add(key types.Key, value []byte) {
 }
 
 // Get looks up a key's value from the cache.
-func (c *LRU) Get(key types.Key) (value []byte, ok bool) {
+func (c *LRU) Get(key types.Key) (value interface{}, ok bool) {
 	if c.MaxEntries == 0 {
 		return
 	}
@@ -87,7 +85,7 @@ func (c *LRU) Get(key types.Key) (value []byte, ok bool) {
 		return
 	}
 	if ele, hit := c.cache[key.String()]; hit {
-		return []byte(ele.Value.(*entry).value), true
+		return ele.Value.(*entry).value, true
 	}
 	return
 }

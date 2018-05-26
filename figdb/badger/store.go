@@ -11,6 +11,8 @@ import (
 	"github.com/figaro-tech/go-figaro/figdb/types"
 )
 
+// TODO: actually make use of the cache
+
 // ErrCalledAfterClose is a self-explanatory error
 var ErrCalledAfterClose = errors.New("figdb: operation called after DB was closed")
 
@@ -19,12 +21,13 @@ type KeyStore struct {
 	block   sync.RWMutex
 	gclock  sync.RWMutex
 	DB      *badger.DB
+	Cache   types.Cache
 	batchDB map[string]string
 	batch   bool
 }
 
 // NewKeyStore returns a badger.KeyStore ready for use
-func NewKeyStore(dir string) *KeyStore {
+func NewKeyStore(dir string, catch types.Cache) *KeyStore {
 	opts := badger.DefaultOptions
 	opts.Dir = dir
 	opts.ValueDir = dir
@@ -32,7 +35,7 @@ func NewKeyStore(dir string) *KeyStore {
 	if err != nil {
 		log.Fatal(err)
 	}
-	return &KeyStore{DB: db}
+	return &KeyStore{DB: db, Cache: catch}
 }
 
 // Close closes the DB and releases the file lock

@@ -12,7 +12,7 @@ import (
 	"io"
 	"math/big"
 
-	"github.com/figaro-tech/go-figaro/figcrypto/hash"
+	"github.com/figaro-tech/go-figaro/figcrypto/hasher"
 	"github.com/figaro-tech/go-figaro/figcrypto/signature/common"
 )
 
@@ -88,7 +88,7 @@ func GenerateKey(rando io.Reader) (privkey, pubkey, address []byte, err error) {
 func GenerateKeyFromSeed(seed ...string) (privkey, publickey, address []byte, err error) {
 	var h []byte
 	for _, s := range seed {
-		h = hash.Hash512(h, []byte(s))
+		h = hasher.Hash512(h, []byte(s))
 	}
 	rando := bytes.NewReader(h)
 	return GenerateKey(rando)
@@ -112,7 +112,7 @@ func RecoverFromSignature(signature, message []byte) (pubkey, address []byte, er
 	if len(signature) != SignatureSize {
 		return nil, nil, common.ErrInvalidSignature
 	}
-	h := hash.Hash256(message)
+	h := hasher.Hash256(message)
 	r := signature[:(SignatureSize-1)/2]
 	s := signature[(SignatureSize-1)/2 : SignatureSize-1]
 	v := signature[SignatureSize-1]
@@ -199,7 +199,7 @@ func VerifyWithAddress(address, signature, message []byte) bool {
 }
 
 func sign(privkey *ecdsa.PrivateKey, message []byte) (signature []byte, err error) {
-	h := hash.Hash256(message)
+	h := hasher.Hash256(message)
 	var r, s *big.Int
 	r, s, err = ecdsa.Sign(rand.Reader, privkey, h)
 	if err != nil {
@@ -226,7 +226,7 @@ func verify(pub *ecdsa.PublicKey, signature, message []byte) bool {
 	}
 	sig := signature[:SignatureSize-1]
 	rbytes, sbytes := sig[:len(sig)/2], sig[len(sig)/2:]
-	h := hash.Hash256(message)
+	h := hasher.Hash256(message)
 	return ecdsa.Verify(pub, h, new(big.Int).SetBytes(rbytes), new(big.Int).SetBytes(sbytes))
 }
 

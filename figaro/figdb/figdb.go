@@ -3,34 +3,23 @@ package figdb
 
 import (
 	"github.com/figaro-tech/go-figaro/figdb"
-	"github.com/figaro-tech/go-figaro/figdb/set"
-	"github.com/figaro-tech/go-figaro/figdb/trie"
+	"github.com/figaro-tech/go-figaro/figdb/cache"
 )
 
 // DB is a domain Merkle database
 type DB struct {
-	DB      *figdb.FigDB
-	Set     *set.Set
-	Archive *trie.Archive
-	State   *trie.State
+	*figdb.FigDB
+	blockcache *cache.FIFO
 }
 
-// MemDB is a domain Merkle database, in-memory only
-type MemDB struct {
-	DB      *figdb.FigMemDB
-	Set     *set.Set
-	Archive *trie.Archive
-	State   *trie.State
-}
-
-// New returns a FigDB backed by a high-performance disk database
-func New(dir string) *DB {
+// New returns a FigDB backed by a high-performance disk database.
+func New(dir string, blockcachesize int) *DB {
 	db := figdb.New(dir)
-	return &DB{db, db.Set, db.Archive, db.State}
+	return &DB{db, cache.NewFIFO(blockcachesize)}
 }
 
-// NewMem returns a FigDB backed by a high-performance memory database
-func NewMem() *MemDB {
+// NewMem returns a FigDB backed by a high-performance memory database.
+func NewMem(dir, blockcachesize int) *DB {
 	db := figdb.NewMem()
-	return &MemDB{db, db.Set, db.Archive, db.State}
+	return &DB{db, cache.NewFIFO(blockcachesize)}
 }

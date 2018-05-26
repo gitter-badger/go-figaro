@@ -40,7 +40,7 @@ func BenchmarkSet_Create(b *testing.B) {
 		data[i] = []byte(RandomString(5))
 	}
 	for i := 0; i < b.N; i++ {
-		bb.Create(data, 0.01)
+		bb.Create(data, 0.0000000000001)
 	}
 }
 
@@ -52,7 +52,7 @@ func BenchmarkSet_Has(b *testing.B) {
 	for i := range data {
 		data[i] = []byte(RandomString(5))
 	}
-	key, _, _ := bb.Create(data, 0.01)
+	key, _, _ := bb.Create(data, 0.0000000000001)
 	for i := 0; i < b.N; i++ {
 		bb.Has(key, data[0])
 	}
@@ -66,7 +66,7 @@ func BenchmarkSet_HasBatch(b *testing.B) {
 	for i := range data {
 		data[i] = []byte(RandomString(5))
 	}
-	key, _, _ := bb.Create(data, 0.01)
+	key, _, _ := bb.Create(data, 0.0000000000001)
 	for i := 0; i < b.N; i++ {
 		bb.HasBatch(key, data)
 	}
@@ -80,7 +80,7 @@ func BenchmarkSet_Get_and_test(b *testing.B) {
 	for i := range data {
 		data[i] = []byte(RandomString(5))
 	}
-	key, _, _ := bb.Create(data, 0.01)
+	key, _, _ := bb.Create(data, 0.0000000000001)
 	bloom, _ := bb.GetBloom(key)
 	for i := 0; i < b.N; i++ {
 		bloom.Has(data[0])

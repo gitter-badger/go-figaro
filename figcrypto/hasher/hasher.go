@@ -1,5 +1,5 @@
-// Package hash provides cryptographic functions
-package hash
+// Package hasher provides cryptographic functions
+package hasher
 
 import (
 	"crypto"
@@ -8,8 +8,8 @@ import (
 	"golang.org/x/crypto/ripemd160"
 )
 
-// Hash is the crypto hash used by figcrypto
-const Hash = crypto.BLAKE2b_256
+// Hasher is the crypto hash used by figcrypto
+const Hasher = crypto.BLAKE2b_256
 
 // Hash256 returns a hash of 0 or more []byte
 func Hash256(b ...[]byte) []byte {

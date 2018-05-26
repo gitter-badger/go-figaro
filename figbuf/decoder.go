@@ -319,6 +319,27 @@ func (dec *Decoder) DecodeUint(b []byte) (d uint, err error) {
 	return
 }
 
+// DecodeByte decodes
+func (dec *Decoder) DecodeByte(b []byte) (d byte, err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			if re, ok := rec.(error); ok {
+				d = 0
+				err = re
+			} else {
+				log.Panic(re)
+			}
+		}
+	}()
+	c := dec.Copy(b)
+	var r []byte
+	d, r = dec.DecodeNextByte(c)
+	if len(r) > 0 {
+		err = ErrInvalidData
+	}
+	return
+}
+
 // DecodeUint8 decodes
 func (dec *Decoder) DecodeUint8(b []byte) (d uint8, err error) {
 	defer func() {
@@ -802,6 +823,17 @@ func (dec *Decoder) DecodeNextUint(b []byte) (d uint, r []byte) {
 	return
 }
 
+// DecodeNextByte decodes
+func (dec *Decoder) DecodeNextByte(b []byte) (d byte, r []byte) {
+	item := dec.nextItem(b)
+	if item.Typ != RlpStr {
+		panic(ErrInvalidData)
+	}
+	r = b[item.Offset+item.Len:]
+	d = dec.BytesToByte(dec.substr(b, item.Offset, item.Len))
+	return
+}
+
 // DecodeNextUint8 decodes
 func (dec *Decoder) DecodeNextUint8(b []byte) (d uint8, r []byte) {
 	item := dec.nextItem(b)
@@ -1055,6 +1087,14 @@ func (dec *Decoder) BytesToUint(b []byte) uint {
 	c = append(c, dec.zeros[:8-len(b)]...)
 	c = append(c, b...)
 	return uint(binary.BigEndian.Uint64(c))
+}
+
+// BytesToByte converts
+func (dec *Decoder) BytesToByte(b []byte) byte {
+	if len(b) == 0 {
+		return 0
+	}
+	return b[0]
 }
 
 // BytesToUint8 converts

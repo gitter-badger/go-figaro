@@ -58,10 +58,10 @@ func New(entries, locs uint64) (bloom *Bloom) {
 }
 
 // NewWithEstimates returns a bloom filter suitable
-// for the desire number of entries, n, and false
+// for the desire number of entries and false
 // positive rate, fp.
-func NewWithEstimates(n uint64, fp float64) (bloom *Bloom) {
-	size, locs := calcSizeByWrongPositives(n, fp)
+func NewWithEstimates(entries uint64, fp float64) (bloom *Bloom) {
+	size, locs := calcSizeByWrongPositives(entries, fp)
 	return New(size, locs)
 }
 

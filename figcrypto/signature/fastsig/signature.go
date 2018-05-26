@@ -10,9 +10,9 @@ import (
 	"io"
 	"math/big"
 
+	"github.com/figaro-tech/go-figaro/figcrypto/hasher"
 	"github.com/figaro-tech/go-figaro/figcrypto/signature/fastsig/secp256k1"
 
-	"github.com/figaro-tech/go-figaro/figcrypto/hash"
 	"github.com/figaro-tech/go-figaro/figcrypto/signature/common"
 )
 
@@ -76,10 +76,10 @@ func GenerateKey(rando io.Reader) (privkey, pubkey, address []byte, err error) {
 
 // GenerateKeyFromSeed creates an public/private key pair, along with an address,
 // that can be used to verify messages, from a seed string or strings.
-func GenerateKeyFromSeed(seed ...string) (privkey, publickey, address []byte, err error) {
+func GenerateKeyFromSeed(seed ...string) (privkey, pubkey, address []byte, err error) {
 	var h []byte
 	for _, s := range seed {
-		h = hash.Hash512(h, []byte(s))
+		h = hasher.Hash512(h, []byte(s))
 	}
 	rando := bytes.NewReader(h)
 	return GenerateKey(rando)
@@ -103,7 +103,7 @@ func RecoverFromSignature(signature, message []byte) (pubkey, address []byte, er
 	if len(signature) != SignatureSize {
 		return nil, nil, common.ErrInvalidSignature
 	}
-	h := hash.Hash256(message)
+	h := hasher.Hash256(message)
 	rec, err := secp256k1.RecoverPubkey(h, signature)
 	if err != nil {
 		return nil, nil, err
@@ -133,7 +133,7 @@ func Sign(privkey, message []byte) (signature []byte, err error) {
 	if len(privkey) != PrivateKeySize {
 		return nil, common.ErrInvalidKey
 	}
-	h := hash.Hash256(message)
+	h := hasher.Hash256(message)
 	return secp256k1.Sign(h, privkey)
 }
 
@@ -142,7 +142,7 @@ func Verify(pubkey, signature, message []byte) bool {
 	if len(pubkey) != PublicKeySize || len(signature) != SignatureSize {
 		return false
 	}
-	h := hash.Hash256(message)
+	h := hasher.Hash256(message)
 	return secp256k1.VerifySignature(pubkey, h, signature[:SignatureSize-1])
 }
 

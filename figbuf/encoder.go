@@ -139,6 +139,12 @@ func (enc *Encoder) EncodeUint(d uint) []byte {
 	return enc.EncodeNextUint(buf, d)
 }
 
+// EncodeByte RLP encodes
+func (enc *Encoder) EncodeByte(d byte) []byte {
+	buf := enc.buf[:0]
+	return enc.EncodeNextByte(buf, d)
+}
+
 // EncodeUint8 RLP encodes
 func (enc *Encoder) EncodeUint8(d uint8) []byte {
 	buf := enc.buf[:0]
@@ -323,6 +329,12 @@ func (enc *Encoder) EncodeNextInt64(buf []byte, d int64) []byte {
 // EncodeNextUint RLP encodes
 func (enc *Encoder) EncodeNextUint(buf []byte, d uint) []byte {
 	b := enc.UintToBytes(d)
+	return enc.encodeRLPString(buf, b)
+}
+
+// EncodeNextByte RLP encodes
+func (enc *Encoder) EncodeNextByte(buf []byte, d byte) []byte {
+	b := enc.ByteToBytes(d)
 	return enc.encodeRLPString(buf, b)
 }
 
@@ -562,6 +574,14 @@ func (enc *Encoder) UintToBytes(d uint) []byte {
 	binary.BigEndian.PutUint64(b, uint64(d))
 	bl := binaryLen(d)
 	return b[len(b)-int(bl):]
+}
+
+// ByteToBytes converts
+func (enc *Encoder) ByteToBytes(d byte) []byte {
+	if d == 0 {
+		return nil
+	}
+	return []byte{d}
 }
 
 // Uint8ToBytes converts

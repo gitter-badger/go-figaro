@@ -6,34 +6,8 @@ import (
 	"github.com/figaro-tech/go-figaro/figdb"
 )
 
-const txCommitFp = 0.0000001 // 1 in 10 million
-
-// CreateTxCommits saves the commits, returning the key and set in binary format.
-func (db *DB) CreateTxCommits(commits ...figaro.TxCommit) (key []byte, set []byte, err error) {
-	bb := make([][]byte, len(commits))
-	for i, c := range commits {
-		bb[i] = c
-	}
-	key, set, err = db.Set.Create(bb, txCommitFp)
-	return
-}
-
-// HasTxCommits determines whether the set at key contains each commit.
-func (db *DB) HasTxCommits(root []byte, commits ...figaro.TxCommit) []bool {
-	bb := make([][]byte, len(commits))
-	for i, c := range commits {
-		bb[i] = c
-	}
-	return db.Set.HasBatch(root, bb)
-}
-
-// HasTxCommit determines whether the set at key contains a commit.
-func (db *DB) HasTxCommit(root []byte, commit figaro.TxCommit) bool {
-	return db.Set.Has(root, commit)
-}
-
-// ArchiveTxs archives Txs, returning the merkle root of the archive.
-func (db *DB) ArchiveTxs(txs ...*figaro.Tx) (root []byte, err error) {
+// ArchiveTransactions archives Transactions, returning the merkle root of the archive.
+func (db *DB) ArchiveTransactions(txs []*figaro.Transaction) (root figaro.Root, err error) {
 	encoded := make([][]byte, len(txs))
 	var e []byte
 	for i, tx := range txs {
@@ -47,16 +21,16 @@ func (db *DB) ArchiveTxs(txs ...*figaro.Tx) (root []byte, err error) {
 	return
 }
 
-// RetrieveTxs retrieves an archive of Txs from a merkle root.
-func (db *DB) RetrieveTxs(root []byte) (txs []*figaro.Tx, err error) {
+// RetrieveTransactions retrieves an archive of Transactions from a merkle root.
+func (db *DB) RetrieveTransactions(root figaro.Root) (txs []*figaro.Transaction, err error) {
 	var encoded [][]byte
 	encoded, err = db.Archive.Retrieve(root)
 	if err != nil {
 		return
 	}
-	txs = make([]*figaro.Tx, len(encoded))
+	txs = make([]*figaro.Transaction, len(encoded))
 	for i, e := range encoded {
-		tx := &figaro.Tx{}
+		tx := &figaro.Transaction{}
 		err = tx.Decode(e)
 		if err != nil {
 			return
@@ -66,32 +40,30 @@ func (db *DB) RetrieveTxs(root []byte) (txs []*figaro.Tx, err error) {
 	return
 }
 
-// GetTx gets the Tx at index in from the archive in the merkle root.
-func (db *DB) GetTx(root []byte, index int) (tx *figaro.Tx, err error) {
+// GetTransaction gets the Transaction at index in from the archive in the merkle root.
+func (db *DB) GetTransaction(root figaro.Root, index int) (tx *figaro.Transaction, err error) {
 	var e []byte
 	e, err = db.Archive.Get(root, index)
 	if err != nil || len(e) == 0 {
 		return
 	}
-	tx = &figaro.Tx{}
-	tx.Decode(e)
+	err = tx.Decode(e)
 	return
 }
 
-// GetAndProveTx gets the Tx at index in from the archive in the merkle root, providing a merkle proof.
-func (db *DB) GetAndProveTx(root []byte, index int) (tx *figaro.Tx, proof [][]byte, err error) {
+// GetAndProveTransaction gets the Transaction at index in from the archive in the merkle root, providing a merkle proof.
+func (db *DB) GetAndProveTransaction(root figaro.Root, index int) (tx *figaro.Transaction, proof [][]byte, err error) {
 	var e []byte
 	e, proof, err = db.Archive.GetAndProve(root, index)
 	if err != nil || len(e) == 0 {
 		return
 	}
-	tx = &figaro.Tx{}
-	tx.Decode(e)
+	err = tx.Decode(e)
 	return
 }
 
-// ValidateTx validates whether a proof is valid for a given Tx in root at index.
-func (db *DB) ValidateTx(root []byte, index int, tx *figaro.Tx, proof [][]byte) bool {
+// ValidateTransaction validates whether a proof is valid for a given Transaction in root at index.
+func (db *DB) ValidateTransaction(root figaro.Root, index int, tx figaro.Transaction, proof [][]byte) bool {
 	e, err := tx.Encode()
 	if err != nil {
 		return false

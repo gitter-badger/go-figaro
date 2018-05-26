@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/figaro-tech/go-figaro/figbuf"
-	"github.com/figaro-tech/go-figaro/figcrypto/hash"
+	"github.com/figaro-tech/go-figaro/figcrypto/hasher"
 	"github.com/figaro-tech/go-figaro/figdb/types"
 )
 
@@ -553,7 +553,7 @@ func (tr *State) setNode(enc *figbuf.Encoder, node [][]byte) ([]byte, error) {
 	if len(v) < 32 {
 		return enc.Copy(v), nil
 	}
-	k := hash.Hash256(node...)
+	k := hasher.Hash256(node...)
 	if tr.Cache != nil {
 		tr.Cache.Add(k, v)
 	}
@@ -768,7 +768,7 @@ func hashNode(enc *figbuf.Encoder, node [][]byte) []byte {
 	if len(v) < 32 {
 		return enc.Copy(v)
 	}
-	return hash.Hash256(node...)
+	return hasher.Hash256(node...)
 }
 
 // Helper Functions

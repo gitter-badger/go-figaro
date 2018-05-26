@@ -24,7 +24,7 @@ func TestKeyStore_Set_Get_Delete(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ks := badger.NewKeyStore("testdata")
+			ks := badger.NewKeyStore("testdata", nil)
 			defer ks.Close()
 			err := ks.Set(tt.args.key, tt.args.value)
 			if (err != nil) != tt.wantErr {

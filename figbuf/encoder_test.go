@@ -206,6 +206,17 @@ func BenchmarkEncoder_EncodeBytesSlice_node(b *testing.B) {
 	}
 }
 
+func BenchmarkEncoder_EncodeBytesSlice_big(b *testing.B) {
+	enc := &figbuf.Encoder{}
+	t := make([][]byte, 0, 56000)
+	for i := 0; i < 56000; i++ {
+		t = append(t, bytes.Repeat([]byte{0xff}, 512))
+	}
+	for i := 0; i < b.N; i++ {
+		enc.EncodeBytesSlice(t)
+	}
+}
+
 func TestEncoder_Encode(t *testing.T) {
 	type args struct {
 		d interface{}

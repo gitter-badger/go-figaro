@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/btcsuite/btcutil/base58"
-	"github.com/figaro-tech/go-figaro/figcrypto/hash"
+	"github.com/figaro-tech/go-figaro/figcrypto/hasher"
 )
 
 // AddressSize is the size of an address, in bytes.
@@ -44,11 +44,11 @@ func ToBinaryAddress(humaddr string) []byte {
 
 // AddressFromPublicKey creates an address from a public key, following the Bitcoin address protocol.
 func AddressFromPublicKey(pubkey []byte) (address []byte) {
-	h := hash.Hash256(pubkey)
-	h = hash.Hash160(h)
+	h := hasher.Hash256(pubkey)
+	h = hasher.Hash160(h)
 	address = append(version, h...)
-	h2 := hash.Hash256(address)
-	h2 = hash.Hash256(h2)
+	h2 := hasher.Hash256(address)
+	h2 = hasher.Hash256(h2)
 	checksum := h2[:4]
 	address = append(address, checksum...)
 	return

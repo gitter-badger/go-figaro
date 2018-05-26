@@ -8,7 +8,7 @@ import (
 	"crypto"
 	"io"
 
-	"github.com/figaro-tech/go-figaro/figcrypto/hash"
+	"github.com/figaro-tech/go-figaro/figcrypto/hasher"
 	"github.com/figaro-tech/go-figaro/figcrypto/signature/common"
 
 	"golang.org/x/crypto/ed25519"
@@ -46,7 +46,7 @@ func GenerateKey(rando io.Reader) (privkey, pubkey, address []byte, err error) {
 func GenerateKeyFromSeed(seed ...string) (privkey, publickey, address []byte, err error) {
 	var h []byte
 	for _, s := range seed {
-		h = hash.Hash512(h, []byte(s))
+		h = hasher.Hash512(h, []byte(s))
 	}
 	rando := bytes.NewReader(h)
 	return GenerateKey(rando)

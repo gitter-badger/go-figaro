@@ -11,7 +11,7 @@ import (
 	"bytes"
 	"errors"
 
-	"github.com/figaro-tech/go-figaro/figcrypto/hash"
+	"github.com/figaro-tech/go-figaro/figcrypto/hasher"
 	"github.com/figaro-tech/go-figaro/figdb/bloom"
 	"github.com/figaro-tech/go-figaro/figdb/types"
 )
@@ -34,7 +34,7 @@ func (s *Set) Create(data [][]byte, fp float64) (key, set []byte, err error) {
 	if err != nil {
 		return
 	}
-	key = hash.Hash256(set)
+	key = hasher.Hash256(set)
 	if s.Cache != nil {
 		s.Cache.Add(key, set)
 	}
@@ -106,6 +106,6 @@ func (s *Set) HasBatch(key types.Key, data [][]byte) (ins []bool) {
 
 // Validate validates that a key is valid for a given set.
 func Validate(key []byte, set []byte) bool {
-	k := hash.Hash256(set)
+	k := hasher.Hash256(set)
 	return bytes.Equal(key, k)
 }

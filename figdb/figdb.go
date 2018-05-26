@@ -25,42 +25,41 @@ func ValidateState(root, key, value []byte, proof [][][]byte) bool {
 	return trie.ValidateMPT(root, key, value, proof)
 }
 
-type trieDB struct {
+// FigDB is a high-performance merklized key/value database
+type FigDB struct {
+	Store   types.KeyStore
 	Set     *set.Set
 	Archive *trie.Archive
 	State   *trie.State
 }
 
-// FigDB is a high-performance merklized key/value database
-type FigDB struct {
-	trieDB
-	DB *badger.KeyStore
-}
-
-// FigMemDB is a in-memory merklized key/value database,
-// useful for testing or demos... state is not saved to
-// disk and does not survive reboots
-type FigMemDB struct {
-	trieDB
-	DB *mock.KeyStore
+// FigRawDB is a high-performance key/value database
+type FigRawDB struct {
+	Store types.KeyStore
 }
 
 // New returns a FigDB, ready to use
 func New(datapath string) *FigDB {
-	db := badger.NewKeyStore(datapath)
+	db := badger.NewKeyStore(datapath, nil)
 	return &FigDB{
-		DB: db,
-		trieDB: trieDB{
-			Set: &set.Set{
-				KeyStore: db,
-			},
-			Archive: &trie.Archive{
-				KeyStore: db,
-			},
-			State: &trie.State{
-				KeyStore: db,
-			},
+		Store: db,
+		Set: &set.Set{
+			KeyStore: db,
 		},
+		Archive: &trie.Archive{
+			KeyStore: db,
+		},
+		State: &trie.State{
+			KeyStore: db,
+		},
+	}
+}
+
+// NewRaw returns a FigRawDB, ready to use
+func NewRaw(datapath string) *FigRawDB {
+	db := badger.NewKeyStore(datapath, nil)
+	return &FigRawDB{
+		Store: db,
 	}
 }
 
@@ -76,6 +75,8 @@ const (
 
 // CacheConfig sets the configuration for caches
 type CacheConfig struct {
+	RawType     CacheType
+	RawSize     int
 	SetType     CacheType
 	SetSize     int
 	ArchiveType CacheType
@@ -86,62 +87,88 @@ type CacheConfig struct {
 
 // NewWithCaches returns a FigDB, ready to use.
 func NewWithCaches(datapath string, config CacheConfig) *FigDB {
-	db := badger.NewKeyStore(datapath)
+	var rawCache types.Cache
+	switch config.RawType {
+	case LRU:
+		rawCache = cache.NewBytesLRU(config.RawSize)
+	case FIFO:
+		rawCache = cache.NewBytesFIFO(config.RawSize)
+	}
+	db := badger.NewKeyStore(datapath, rawCache)
 	var setCache types.Cache
 	switch config.SetType {
 	case LRU:
-		setCache = cache.NewLRU(config.SetSize)
+		setCache = cache.NewBytesLRU(config.SetSize)
 	case FIFO:
-		setCache = cache.NewFIFO(config.SetSize)
+		setCache = cache.NewBytesFIFO(config.SetSize)
 	}
 	var archiveCache types.Cache
 	switch config.ArchiveType {
 	case LRU:
-		archiveCache = cache.NewLRU(config.ArchiveSize)
+		archiveCache = cache.NewBytesLRU(config.ArchiveSize)
 	case FIFO:
-		archiveCache = cache.NewFIFO(config.ArchiveSize)
+		archiveCache = cache.NewBytesFIFO(config.ArchiveSize)
 	}
 	var stateCache types.Cache
 	switch config.StateType {
 	case LRU:
-		stateCache = cache.NewLRU(config.StateSize)
+		stateCache = cache.NewBytesLRU(config.StateSize)
 	case FIFO:
-		stateCache = cache.NewFIFO(config.StateSize)
+		stateCache = cache.NewBytesFIFO(config.StateSize)
 	}
 	return &FigDB{
-		DB: db,
-		trieDB: trieDB{
-			Set: &set.Set{
-				KeyStore: db,
-				Cache:    setCache,
-			},
-			Archive: &trie.Archive{
-				KeyStore: db,
-				Cache:    archiveCache,
-			},
-			State: &trie.State{
-				KeyStore: db,
-				Cache:    stateCache,
-			},
+		Store: db,
+		Set: &set.Set{
+			KeyStore: db,
+			Cache:    setCache,
+		},
+		Archive: &trie.Archive{
+			KeyStore: db,
+			Cache:    archiveCache,
+		},
+		State: &trie.State{
+			KeyStore: db,
+			Cache:    stateCache,
 		},
 	}
 }
 
+// NewRawWithCache returns a FigRawDB, ready to use.
+func NewRawWithCache(datapath string, config CacheConfig) *FigRawDB {
+	var rawCache types.Cache
+	switch config.RawType {
+	case LRU:
+		rawCache = cache.NewBytesLRU(config.RawSize)
+	case FIFO:
+		rawCache = cache.NewBytesFIFO(config.RawSize)
+	}
+	db := badger.NewKeyStore(datapath, rawCache)
+	return &FigRawDB{
+		Store: db,
+	}
+}
+
 // NewMem returns a FigMemDB, ready to use
-func NewMem() *FigMemDB {
+func NewMem() *FigDB {
 	db := mock.NewKeyStore()
-	return &FigMemDB{
-		DB: db,
-		trieDB: trieDB{
-			Set: &set.Set{
-				KeyStore: db,
-			},
-			Archive: &trie.Archive{
-				KeyStore: db,
-			},
-			State: &trie.State{
-				KeyStore: db,
-			},
+	return &FigDB{
+		Store: db,
+		Set: &set.Set{
+			KeyStore: db,
 		},
+		Archive: &trie.Archive{
+			KeyStore: db,
+		},
+		State: &trie.State{
+			KeyStore: db,
+		},
+	}
+}
+
+// NewRawMem returns a FigMemDB, ready to use
+func NewRawMem() *FigDB {
+	db := mock.NewKeyStore()
+	return &FigDB{
+		Store: db,
 	}
 }
