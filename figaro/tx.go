@@ -3,7 +3,6 @@ package figaro
 
 import (
 	"bytes"
-	"errors"
 	"log"
 	"time"
 
@@ -16,49 +15,6 @@ import (
 // a network configuration value, and does not impact consensus or validation
 // of existing data.
 const MaxTxDataSize = 4096
-
-var (
-	// ErrInvalidTxTypeData is a self-explantory error.
-	ErrInvalidTxTypeData = errors.New("figaro tx: invalid TxType data")
-)
-
-// TxType is a supported transaction type. It is used to save
-// space by only including a single `Value` field and a single
-// byte to represent the type of value being transferred.
-type TxType byte
-
-const (
-	// BalanceTx transactions transfer Fia Balance from one account to another.
-	BalanceTx TxType = iota
-	// StakeTx transactions transfer FIG Stake from one account to another.
-	StakeTx
-)
-
-// ValidTxType is returns whether a TxType is a valid TxType
-func ValidTxType(t TxType) bool {
-	switch t {
-	case BalanceTx:
-		return true
-	case StakeTx:
-		return true
-	default:
-		return false
-	}
-}
-
-// MarshalBinary implements encoding.BinaryMarshaler
-func (tx TxType) MarshalBinary() ([]byte, error) {
-	return []byte{byte(tx)}, nil
-}
-
-// UnmarshalBinary implements encoding.BinaryUnmarshaler
-func (tx *TxType) UnmarshalBinary(b []byte) error {
-	if len(b) > 1 {
-		return ErrInvalidTxTypeData
-	}
-	*tx = TxType(b[0])
-	return nil
-}
 
 // A ReceivedTx is a Transaction that is waiting to be mined into a block.
 type ReceivedTx struct {
@@ -136,28 +92,8 @@ func (tx Transaction) VerifySignature() bool {
 	return fastsig.Verify(tx.From, tx.Signature, h)
 }
 
-// QuickCheck returns whether the transaction is internally consistent and follows
-// network protocol rules. As the name implies, it is meant to run quickly and should
-// be called for "live" transactions prior to signature verification or tx validation,
-// as tx rejected here save significant processing. CAUTION: because network configuration
-// can change, it should NOT be used for historical validation.
-func (tx Transaction) QuickCheck() bool {
-	// Is a valid TxType
-	if !ValidTxType(tx.Type) {
-		return false
-	}
-	// Follows data limits
-	if len(tx.Data) > MaxTxDataSize {
-		return false
-	}
-	// Is signed
-	if len(tx.Signature) < fastsig.SignatureSize {
-		return false
-	}
-	return true
-}
-
 // Ordinal returns 1 if this is a future tx, 0 if it is a current tx, and -1 if this is a stale tx.
+// Ordinality is only valid in reference to the given state root.
 func (tx Transaction) Ordinal(db AccountFetchService, root Root) int {
 	fromAcc, err := db.FetchAccount(root, tx.From)
 	if err != nil {
@@ -173,7 +109,19 @@ func (tx Transaction) Ordinal(db AccountFetchService, root Root) int {
 }
 
 // Validate returns whether the transaction will fail if it is processed as the next transaction.
-func (tx Transaction) Validate(db FullChainDataService, block *BlockHeader, commmitBlock *BigBlock) bool {
+func (tx Transaction) Validate(db FullChainDataService, block *BlockHeader, commmitBlock *Block) bool {
+	// Is a valid TxType
+	if !ValidTxType(tx.Type) {
+		return false
+	}
+	// Follows data limits
+	if len(tx.Data) > MaxTxDataSize {
+		return false
+	}
+	// Is signed
+	if len(tx.Signature) < fastsig.SignatureSize {
+		return false
+	}
 	fromAcc, err := db.FetchAccount(block.StateRoot, tx.From)
 	if err != nil {
 		log.Panic(err)

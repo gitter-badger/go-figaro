@@ -13,7 +13,15 @@ import (
 // would in archive and state tries.
 var blockprefix = md5.Sum([]byte("figaro/block"))
 
+type blockCacheItem struct {
+	header figaro.BlockHeader
+	block  figaro.Block
+	ref    figaro.RefBlock
+	comp   figaro.CompBlock
+}
+
 // SaveBlockHeader saves a block hearder. It can be retreived by ID.
+// Typically used by light clients that only ever need to save the block header.
 func (db *DB) SaveBlockHeader(header *figaro.BlockHeader) error {
 	id, err := header.ID()
 	if err != nil {
@@ -33,29 +41,25 @@ func (db *DB) SaveBlockHeader(header *figaro.BlockHeader) error {
 
 // SaveBlock saves a block. It can be retreived by ID.
 func (db *DB) SaveBlock(block *figaro.Block) error {
+	// Always save the blockheader
 	id, err := block.ID()
 	if err != nil {
 		return err
 	}
-	// NOTE: this actually on saves the Header, as commits and txs
-	// will have already been saved separately
-	value, err := block.Encode()
+	err = db.SaveBlockHeader(block.BlockHeader)
 	if err != nil {
 		return err
 	}
 	key := hasher.Hash256(blockprefix[:], id)
-	err = db.Store.Set(key, value)
-	if err != nil {
-		return err
+	ref := block.Ref()
+	comp := block.Compress()
+	item := &blockCacheItem{
+		header: *(block.BlockHeader),
+		block:  *block,
+		ref:    *ref,
+		comp:   *comp,
 	}
-	// Save a BigBlock in the in-memory FIFO cache, so that
-	// if we need to reference this block again soon (such as
-	// checking for commits), we have it ready to go.
-	big, err := block.Expand()
-	if err != nil {
-		return err
-	}
-	db.blockcache.Add(key, big)
+	db.blockcache.Add(key, item)
 	return nil
 }
 
@@ -64,8 +68,8 @@ func (db *DB) FetchBlockHeader(id figaro.BlockHash) (header *figaro.BlockHeader,
 	// First check the cache for a BigBlock
 	// and just return its header if it exists
 	key := hasher.Hash256(blockprefix[:], id)
-	if big, ok := db.blockcache.Get(key); ok {
-		header = big.(*figaro.BigBlock).BlockHeader
+	if item, ok := db.blockcache.Get(key); ok {
+		*header = item.(*blockCacheItem).header
 		return
 	}
 	// Fetch the header from the store
@@ -85,8 +89,8 @@ func (db *DB) FetchBlockHeader(id figaro.BlockHash) (header *figaro.BlockHeader,
 func (db *DB) FetchCompBlock(id figaro.BlockHash) (cblock *figaro.CompBlock, err error) {
 	// First check the cache for a BigBlock
 	key := hasher.Hash256(blockprefix[:], id)
-	if big, ok := db.blockcache.Get(key); ok {
-		cblock = big.(*figaro.BigBlock).CompBlock
+	if item, ok := db.blockcache.Get(key); ok {
+		*cblock = item.(*blockCacheItem).comp
 		return
 	}
 	// Get the full block and then compress it
@@ -98,7 +102,7 @@ func (db *DB) FetchCompBlock(id figaro.BlockHash) (cblock *figaro.CompBlock, err
 	if err != nil {
 		return
 	}
-	cblock, err = block.Compress()
+	cblock = block.Compress()
 	return
 }
 
@@ -106,12 +110,8 @@ func (db *DB) FetchCompBlock(id figaro.BlockHash) (cblock *figaro.CompBlock, err
 func (db *DB) FetchRefBlock(id figaro.BlockHash) (rblock *figaro.RefBlock, err error) {
 	// First check the cache for a BigBlock
 	key := hasher.Hash256(blockprefix[:], id)
-	if big, ok := db.blockcache.Get(key); ok {
-		rblock = &figaro.RefBlock{
-			BlockHeader: big.(*figaro.BigBlock).BlockHeader,
-			Commits:     big.(*figaro.BigBlock).Commits,
-			TxIDs:       big.(*figaro.BigBlock).TxIDs,
-		}
+	if item, ok := db.blockcache.Get(key); ok {
+		*rblock = item.(*blockCacheItem).ref
 		return
 	}
 	// Otherwise fetch and hydrate the block
@@ -125,7 +125,7 @@ func (db *DB) FetchRefBlock(id figaro.BlockHash) (rblock *figaro.RefBlock, err e
 	if err != nil {
 		return
 	}
-	rblock, err = block.Ref()
+	rblock = block.Ref()
 	return
 }
 
@@ -133,10 +133,8 @@ func (db *DB) FetchRefBlock(id figaro.BlockHash) (rblock *figaro.RefBlock, err e
 func (db *DB) FetchBlock(id figaro.BlockHash) (block *figaro.Block, err error) {
 	// First check the cache for a BigBlock
 	key := hasher.Hash256(blockprefix[:], id)
-	if big, ok := db.blockcache.Get(key); ok {
-		block.BlockHeader = big.(*figaro.BigBlock).BlockHeader
-		block.Commits = big.(*figaro.BigBlock).Commits
-		block.Transactions = big.(*figaro.BigBlock).Transactions
+	if item, ok := db.blockcache.Get(key); ok {
+		*block = item.(*blockCacheItem).block
 		return
 	}
 	header, err := db.FetchBlockHeader(id)
@@ -144,29 +142,6 @@ func (db *DB) FetchBlock(id figaro.BlockHash) (block *figaro.Block, err error) {
 		return nil, err
 	}
 	block, err = db.hydrateBlock(header)
-	return
-}
-
-// FetchBigBlock returns a Block, including Commits and Transactions.
-func (db *DB) FetchBigBlock(id figaro.BlockHash) (bblock *figaro.BigBlock, err error) {
-	// First check the cache for a BigBlock
-	key := hasher.Hash256(blockprefix[:], id)
-	if big, ok := db.blockcache.Get(key); ok {
-		bblock = big.(*figaro.BigBlock)
-		return
-	}
-	// Build the BigBlock from the store
-	var header *figaro.BlockHeader
-	header, err = db.FetchBlockHeader(id)
-	if err != nil {
-		return
-	}
-	var block *figaro.Block
-	block, err = db.hydrateBlock(header)
-	if err != nil {
-		return
-	}
-	bblock, err = block.Expand()
 	return
 }
 

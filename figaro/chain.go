@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"container/heap"
 	"errors"
+	"reflect"
 
 	"github.com/figaro-tech/go-figaro/figbuf"
 )
@@ -46,13 +47,25 @@ func (chain *Chain) NewBlock(provider Address, beneficiary Address) *Block {
 }
 
 // AppendBlock will append a block to the head, saving both the block
-// and the chain. It does not perform only basic checks, and assumes that the block
-// is either trusted or produced locally.
+// and the chain. It performs only basic checks to ensure the chain is
+// not gapped, and assumes that the block is produced locally
 func (chain *Chain) AppendBlock(db FullChainDataService, block *Block) error {
-	if block.Number != chain.Depth+1 {
+	if !block.WellFormed() {
+		return ErrInvalidBlock
+	}
+	if !block.VerifySignature() {
+		return ErrInvalidBlock
+	}
+	if reflect.DeepEqual(block.ChainConfig, chain.ChainConfig) {
+		return ErrInvalidBlock
+	}
+	if block.Number > chain.Depth+1 {
 		return ErrInvalidBlock
 	}
 	if !bytes.Equal(block.ParentBlock, chain.Head) {
+		return ErrInvalidBlock
+	}
+	if reflect.DeepEqual(block.ChainConfig, chain.ChainConfig) {
 		return ErrInvalidBlock
 	}
 	err := db.SaveBlock(block)
@@ -68,47 +81,79 @@ func (chain *Chain) AppendBlock(db FullChainDataService, block *Block) error {
 	return nil
 }
 
-// ReceiveBlock processes a block received from the network. It will validate and sync
-// the block if it is the next block in the chain, or if the chain is gapped, it will
-// append it to the list of future blocks. ReceiveBlock will also process any pending
-// future blocks that are part of the chain. If a block is encountered that is not part
-// of the chain, `engine` is used to determine the canonical chain.
+// ReceiveBlock processes a block received from the network. It performs only
+// basic checks, and assumes that the block is trusted if the signature and
+// producer are valid. If the block is the next block in the chain, it will be
+// appended. If the chain is gapped, the block will be added to `futureblocks`.
+// If there is a conflict, `engine` will be used to initiate a chain reorg.
 func (chain *Chain) ReceiveBlock(db FullChainDataService, block *Block, futureblocks *BlockHeap, engine ConsensusEngine) error {
-	if block.Number > chain.Depth+1 {
-		heap.Push(futureblocks, block)
-		return nil
-	}
-	if !block.CheckChainConfig(chain.ChainConfig) {
+	if !block.WellFormed() {
 		return nil
 	}
 	if !block.VerifySignature() {
 		return nil
 	}
-	// If there's a conflict, we'll get back a new chain, block, and futureblocks and can continue as normal
-	if !bytes.Equal(block.ParentBlock, chain.Head) {
-		*chain, block, futureblocks = engine.ChainReorg(db, *chain, block, futureblocks)
-	}
-	pblock, err := db.FetchBlockHeader(chain.Head)
-	if err != nil {
-		return err
-	}
-	if !block.ValidateAndSync(db, pblock, engine) {
+	if reflect.DeepEqual(block.ChainConfig, chain.ChainConfig) {
 		return nil
 	}
-	h, err := block.ID()
-	if err != nil {
-		return err
+	if block.Number > chain.Depth+1 {
+		heap.Push(futureblocks, block)
+		return nil
 	}
-	chain.Head = h
-	chain.Depth = block.Number
-	err = db.SaveChain(chain)
-	if err != nil {
-		return err
+	if !engine.ValidateBlockProducer(db, block) {
+		return nil
 	}
-	if futureblocks.PeekNextNumber() == chain.Depth+1 {
-		return chain.ReceiveBlock(db, heap.Pop(futureblocks).(*Block), futureblocks, engine)
+	// If there's a conflict, we'll get back a new chain, block, and futureblocks and can continue as normal
+	if !bytes.Equal(block.ParentBlock, chain.Head) {
+		var err error
+		*chain, *block, *futureblocks, err = engine.HandleDivergence(db, *chain, block, futureblocks)
+		if err != nil {
+			return err
+		}
 	}
-	return nil
+	return chain.AppendBlock(db, block)
+}
+
+// ReceiveAndSyncBlock processes a block received from the network.If the block
+// is the next block in the chain, it will be fully validated and synced. If
+// the chain is gapped, the block will be added to `futureblocks`. If there is a
+// conflict, `engine` will be used to initiate a chain reorg.
+func (chain *Chain) ReceiveAndSyncBlock(db FullChainDataService, block *Block, futureblocks *BlockHeap, engine ConsensusEngine) error {
+	if !block.WellFormed() {
+		return nil
+	}
+	if !block.VerifySignature() {
+		return nil
+	}
+	if reflect.DeepEqual(block.ChainConfig, chain.ChainConfig) {
+		return nil
+	}
+	if block.Number > chain.Depth+1 {
+		heap.Push(futureblocks, block)
+		return nil
+	}
+	if !engine.ValidateBlockProducer(db, block) {
+		return nil
+	}
+	if !engine.ValidateBlockTxs(db, block) {
+		return nil
+	}
+	if !block.Sync(db) {
+		err := engine.HandleInvalidHeaders(db, block)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	// If there's a conflict, we'll get back a new chain, block, and futureblocks and can continue as normal
+	if !bytes.Equal(block.ParentBlock, chain.Head) {
+		var err error
+		*chain, *block, *futureblocks, err = engine.HandleDivergence(db, *chain, block, futureblocks)
+		if err != nil {
+			return err
+		}
+	}
+	return chain.AppendBlock(db, block)
 }
 
 // Encode deterministically encodes a Chain to binary format.

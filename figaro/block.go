@@ -12,15 +12,15 @@ import (
 	"github.com/figaro-tech/go-figaro/figcrypto/hasher"
 	"github.com/figaro-tech/go-figaro/figcrypto/signature/fastsig"
 	"github.com/figaro-tech/go-figaro/figcrypto/trie"
+	"github.com/figaro-tech/go-figaro/figdb/bloom"
 )
 
-// MaxFees ensures that combined fees are not larger than the max value
-// that can be represented by an individual fee.
+// MaxFees ensures that total fees doesn't overflow.
 const MaxFees = math.MaxUint32 / 2
 
 var (
-	// ErrExceedsBlockLimit is raised when a commit or tx is added when the addition would
-	// exceed the max number of commits or transactions, which is MaxUint16.
+	// ErrExceedsBlockLimit is returned when adding a commit or tx would overflow the
+	// max commit or transaction size.
 	ErrExceedsBlockLimit = errors.New("figaro block: commit or tx would exceed limit")
 )
 
@@ -46,14 +46,21 @@ type BlockHeader struct {
 	receipts []*Receipt
 }
 
-// Block is a collection of ordered transactions that updated state.
+// Block is a collection of ordered transactions that determine world state.
 type Block struct {
 	*BlockHeader
+	CommitsBloom []byte
+	TxBloom      []byte
 	Commits      []Commit
 	Transactions []*Transaction
+
+	// local data
+	cbloom  *bloom.Bloom
+	txbloom *bloom.Bloom
 }
 
-// ID hashes the Block fields other than Signature, creating a unique ID.
+// ID hashes the Block fields other than Signature, creating a unique ID. It is only
+// valid for a sealed block.
 func (bl *BlockHeader) ID() (bh BlockHash, err error) {
 	if len(bl.id) == 32 {
 		bh = make(BlockHash, len(bl.id))
@@ -136,19 +143,19 @@ func (bl *Block) AddTx(db FullChainDataService, tx *Transaction) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	cbig, err := db.FetchBigBlock(cbid)
+	cblock, err := db.FetchBlock(cbid)
 	if err != nil {
 		return 0, err
 	}
 	var newroot Root
 	var receipt *Receipt
-	if tx.Validate(db, bl.BlockHeader, cbig) {
-		newroot, receipt, err = tx.Execute(db, uint16(len(bl.Transactions)+1), bl.BlockHeader, cbig.BlockHeader)
+	if tx.Validate(db, bl.BlockHeader, cblock) {
+		newroot, receipt, err = tx.Execute(db, uint16(len(bl.Transactions)+1), bl.BlockHeader, cblock.BlockHeader)
 		if err != nil {
 			return 0, err
 		}
 	} else {
-		newroot, receipt, err = tx.ExecuteInvalid(db, uint16(len(bl.Transactions)+1), bl.BlockHeader, cbig.BlockHeader)
+		newroot, receipt, err = tx.ExecuteInvalid(db, uint16(len(bl.Transactions)+1), bl.BlockHeader, cblock.BlockHeader)
 		if err != nil {
 			return 0, err
 		}
@@ -189,19 +196,66 @@ func (bl *Block) Seal(db FullChainDataService) error {
 	if err != nil {
 		return err
 	}
+	cbloom := bloom.NewWithEstimates(uint64(len(bl.Commits)), bloomfp)
+	for _, c := range bl.Commits {
+		cbloom.Add(c)
+	}
+	cbloombits, err := cbloom.Marshal()
+	if err != nil {
+		return err
+	}
+	txbloom := bloom.NewWithEstimates(uint64(len(bl.Transactions)), bloomfp)
+	for _, t := range bl.Transactions {
+		id, err := t.ID()
+		if err != nil {
+			return err
+		}
+		txbloom.Add(id)
+	}
+	txloombits, err := txbloom.Marshal()
+	if err != nil {
+		return err
+	}
+	bl.CommitsBloom = cbloombits
+	bl.cbloom = cbloom
+	bl.TxBloom = txloombits
+	bl.txbloom = txbloom
 	bl.Timestamp = time.Now()
+	// ensure that ID() will set the cache the first time it is called after sealing,
+	// otherwise an early call could cause sublte bugs
+	bl.id = nil
 	return nil
 }
 
-// CheckChainConfig returns whether the block chain config matches the provided chain config.
-func (bl *Block) CheckChainConfig(config ChainConfig) bool {
-	return reflect.DeepEqual(bl.ChainConfig, config)
+// HasCommit returns whether the CompBlock contains a Commit. Only valid on a sealed
+// or received block.
+func (bl *Block) HasCommit(c Commit) bool {
+	if bl.cbloom == nil {
+		var err error
+		bl.cbloom, err = bloom.Unmarshal(bl.CommitsBloom)
+		if err != nil {
+			panic("invalid Block.CommitsBloom")
+		}
+	}
+	return bl.cbloom.Has(c)
 }
 
-// ValidateAndSync returns whether a block is valid or not. It relies on `engine` to determine whether
-// the Producer is valid for the block. It then syncs all transactions and validates the Block against
-// the results. The caller is responsible for any data cleanup if the Block does not validate.
-func (bl *Block) ValidateAndSync(db FullChainDataService, prev *BlockHeader, engine ConsensusEngine) bool {
+// HasTx returns whether the Block contains a Transaction. Only valid on a sealed
+// or received block.
+func (bl *Block) HasTx(txhash TxHash) bool {
+	if bl.txbloom == nil {
+		var err error
+		bl.txbloom, err = bloom.Unmarshal(bl.TxBloom)
+		if err != nil {
+			panic("invalid Block.TxBloom")
+		}
+	}
+	return bl.txbloom.Has(txhash)
+}
+
+// WellFormed returns whether the Block is well-formed. It does no further
+// validation beyond checking that the Block could possibly be a valid Block.
+func (bl *Block) WellFormed() bool {
 	if len(bl.Signature) != fastsig.SignatureSize {
 		return false
 	}
@@ -220,9 +274,12 @@ func (bl *Block) ValidateAndSync(db FullChainDataService, prev *BlockHeader, eng
 	if len(bl.Transactions) > math.MaxInt16 {
 		return false
 	}
-	if !engine.ValidateBlock(db, bl.BlockHeader) {
-		return false
-	}
+	return true
+}
+
+// Sync syncs all commits, transactions, and receipts and then validates the Blockheader,
+// returning whether or not the Block was valid.
+func (bl *Block) Sync(db FullChainDataService) bool {
 	btest := &Block{
 		BlockHeader: &BlockHeader{
 			Signature:   bl.Signature,
@@ -239,16 +296,15 @@ func (bl *Block) ValidateAndSync(db FullChainDataService, prev *BlockHeader, eng
 			},
 		},
 	}
-
 	// preallocate for some performance gain
 	btest.Commits = make([]Commit, 0, len(bl.Commits))
 	btest.Transactions = make([]*Transaction, 0, len(bl.Transactions))
-
 	// This will sync the block by reprocessing it locally
 	for _, c := range bl.Commits {
 		btest.AddCommit(c)
 	}
 	for _, t := range bl.Transactions {
+		// We assume we have already validated supplied tx signatures elsewhere.
 		btest.AddTx(db, t)
 	}
 	btest.Seal(db)
@@ -320,7 +376,6 @@ type BlockDataService interface {
 	FetchCompBlock(id BlockHash) (*CompBlock, error)
 	FetchRefBlock(id BlockHash) (*RefBlock, error)
 	FetchBlock(id BlockHash) (*Block, error)
-	FetchBigBlock(id BlockHash) (*BigBlock, error)
 	BlockLDataService
 }
 
