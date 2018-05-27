@@ -46,6 +46,20 @@ func (chain *Chain) NewBlock(provider Address, beneficiary Address) *Block {
 	}
 }
 
+func (chain *Chain) appendBlock(db FullChainDataService, block *Block) error {
+	err := db.SaveBlock(block)
+	if err != nil {
+		return err
+	}
+	chain.Depth++
+	chain.Head, err = block.ID()
+	if err != nil {
+		return err
+	}
+	db.SaveChain(chain)
+	return nil
+}
+
 // AppendBlock will append a block to the head, saving both the block
 // and the chain. It performs only basic checks to ensure the chain is
 // not gapped, and assumes that the block is produced locally
@@ -68,17 +82,7 @@ func (chain *Chain) AppendBlock(db FullChainDataService, block *Block) error {
 	if reflect.DeepEqual(block.ChainConfig, chain.ChainConfig) {
 		return ErrInvalidBlock
 	}
-	err := db.SaveBlock(block)
-	if err != nil {
-		return err
-	}
-	chain.Depth++
-	chain.Head, err = block.ID()
-	if err != nil {
-		return err
-	}
-	db.SaveChain(chain)
-	return nil
+	return chain.appendBlock(db, block)
 }
 
 // ReceiveBlock processes a block received from the network. It performs only
@@ -111,7 +115,7 @@ func (chain *Chain) ReceiveBlock(db FullChainDataService, block *Block, futurebl
 			return err
 		}
 	}
-	return chain.AppendBlock(db, block)
+	return chain.appendBlock(db, block)
 }
 
 // ReceiveAndSyncBlock processes a block received from the network.If the block
@@ -153,7 +157,7 @@ func (chain *Chain) ReceiveAndSyncBlock(db FullChainDataService, block *Block, f
 			return err
 		}
 	}
-	return chain.AppendBlock(db, block)
+	return chain.appendBlock(db, block)
 }
 
 // Encode deterministically encodes a Chain to binary format.
