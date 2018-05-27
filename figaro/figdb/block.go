@@ -86,18 +86,7 @@ func (db *DB) FetchCompBlock(id figaro.BlockHash) (cblock *figaro.CompBlock, err
 	// First check the cache for a BigBlock
 	key := hasher.Hash256(blockprefix[:], id)
 	if big, ok := db.blockcache.Get(key); ok {
-		var cbloom, tbloom []byte
-		cbloom, err = big.(*figaro.BigBlock).CommitsBloom.Marshal()
-		if err != nil {
-			return
-		}
-		tbloom, err = big.(*figaro.BigBlock).TxBloom.Marshal()
-		if err != nil {
-			return
-		}
-		cblock.BlockHeader = big.(*figaro.BigBlock).BlockHeader
-		cblock.CommitsBloom = cbloom
-		cblock.TxBloom = tbloom
+		cblock = big.(*figaro.BigBlock).CompBlock
 		return
 	}
 	// Get the full block and then compress it
@@ -117,22 +106,24 @@ func (db *DB) FetchCompBlock(id figaro.BlockHash) (cblock *figaro.CompBlock, err
 func (db *DB) FetchRefBlock(id figaro.BlockHash) (rblock *figaro.RefBlock, err error) {
 	// First check the cache for a BigBlock
 	key := hasher.Hash256(blockprefix[:], id)
-	var block *figaro.Block
 	if big, ok := db.blockcache.Get(key); ok {
-		block.BlockHeader = big.(*figaro.BigBlock).BlockHeader
-		block.Commits = big.(*figaro.BigBlock).Commits
-		block.Transactions = big.(*figaro.BigBlock).Transactions
-	} else {
-		// Otherwise fetch and hydrate the block
-		var header *figaro.BlockHeader
-		header, err = db.FetchBlockHeader(id)
-		if err != nil {
-			return
+		rblock = &figaro.RefBlock{
+			BlockHeader: big.(*figaro.BigBlock).BlockHeader,
+			Commits:     big.(*figaro.BigBlock).Commits,
+			TxIDs:       big.(*figaro.BigBlock).TxIDs,
 		}
-		block, err = db.hydrateBlock(header)
-		if err != nil {
-			return
-		}
+		return
+	}
+	// Otherwise fetch and hydrate the block
+	var header *figaro.BlockHeader
+	header, err = db.FetchBlockHeader(id)
+	if err != nil {
+		return
+	}
+	var block *figaro.Block
+	block, err = db.hydrateBlock(header)
+	if err != nil {
+		return
 	}
 	rblock, err = block.Ref()
 	return

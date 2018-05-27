@@ -12,7 +12,6 @@ import (
 	"github.com/figaro-tech/go-figaro/figcrypto/hasher"
 	"github.com/figaro-tech/go-figaro/figcrypto/signature/fastsig"
 	"github.com/figaro-tech/go-figaro/figcrypto/trie"
-	"github.com/figaro-tech/go-figaro/figdb/bloom"
 )
 
 // MaxFees ensures that combined fees are not larger than the max value
@@ -47,39 +46,10 @@ type BlockHeader struct {
 	receipts []*Receipt
 }
 
-// A CompBlock is a block where Commits and Transactions
-// are replaced with bloom filters.
-type CompBlock struct {
-	*BlockHeader
-	CommitsBloom []byte
-	TxBloom      []byte
-}
-
-// A RefBlock is a block where Transactions
-// is replaced with TxHashes. Useful where a requester
-// already has a list of hashes, and will follow-up with
-// a request for transaction data that they are missing.
-type RefBlock struct {
-	*BlockHeader
-	Commits []Commit
-	TxIDs   []TxHash
-}
-
 // Block is a collection of ordered transactions that updated state.
 type Block struct {
 	*BlockHeader
 	Commits      []Commit
-	Transactions []*Transaction
-}
-
-// BigBlock is a Block where Commits and Transactions co-exist alongside
-// their bloombits, allowing faster membership testing at the cost of
-// memory/storage.
-type BigBlock struct {
-	*BlockHeader
-	CommitsBloom *bloom.Bloom
-	Commits      []Commit
-	TxBloom      *bloom.Bloom
 	Transactions []*Transaction
 }
 
@@ -161,7 +131,6 @@ func (bl *Block) AddTx(db FullChainDataService, tx *Transaction) (int, error) {
 	if len(bl.Transactions) == math.MaxUint16 {
 		return 0, ErrExceedsBlockLimit
 	}
-
 	// Fetch the commit block
 	cbid, err := db.FetchChainBlock(tx.CommitBlock)
 	if err != nil {
@@ -184,7 +153,6 @@ func (bl *Block) AddTx(db FullChainDataService, tx *Transaction) (int, error) {
 			return 0, err
 		}
 	}
-
 	bl.StateRoot = newroot
 	bl.Transactions = append(bl.Transactions, tx)
 	bl.receipts = append(bl.receipts, receipt)
@@ -286,78 +254,6 @@ func (bl *Block) ValidateAndSync(db FullChainDataService, prev *BlockHeader, eng
 	btest.Seal(db)
 	btest.Timestamp = bl.Timestamp
 	return reflect.DeepEqual(btest, bl)
-}
-
-// Compress converts a Block into a CompBlock. The Block should already be sealed and signed before calling Compress.
-func (bl Block) Compress() (cb *CompBlock, err error) {
-	cb.BlockHeader = bl.BlockHeader
-	cbloom := bloom.NewWithEstimates(uint64(len(bl.Commits)), bloomfp)
-	for _, c := range bl.Commits {
-		cbloom.Add(c)
-	}
-	var cbloombits []byte
-	cbloombits, err = cbloom.Marshal()
-	if err != nil {
-		return
-	}
-	txbloom := bloom.NewWithEstimates(uint64(len(bl.Transactions)), bloomfp)
-	var id TxHash
-	for _, t := range bl.Transactions {
-		id, err = t.ID()
-		if err != nil {
-			return
-		}
-		txbloom.Add(id)
-	}
-	var txloombits []byte
-	txloombits, err = txbloom.Marshal()
-	if err != nil {
-		return
-	}
-	cb.CommitsBloom = cbloombits
-	cb.TxBloom = txloombits
-	return
-}
-
-// Ref converts a Block into a RefBlock. The Block should already be sealed and signed before calling Ref.
-func (bl Block) Ref() (rf *RefBlock, err error) {
-	rf.BlockHeader = bl.BlockHeader
-	rf.Commits = make([]Commit, len(bl.Commits))
-	copy(rf.Commits, bl.Commits)
-	rf.TxIDs = make([]TxHash, len(bl.Transactions))
-	var id TxHash
-	for i, t := range bl.Transactions {
-		id, err = t.ID()
-		if err != nil {
-			return
-		}
-		rf.TxIDs[i] = id
-	}
-	return
-}
-
-// Expand converts a Block into a BigBlock. The Block should already be sealed and signed before calling Expand.
-func (bl Block) Expand() (bb *BigBlock, err error) {
-	var cb *CompBlock
-	cb, err = bl.Compress()
-	if err != nil {
-		return
-	}
-	bb.BlockHeader = bl.BlockHeader
-	var cbloom, tbloom *bloom.Bloom
-	cbloom, err = bloom.Unmarshal(cb.CommitsBloom)
-	if err != nil {
-		return
-	}
-	tbloom, err = bloom.Unmarshal(cb.TxBloom)
-	if err != nil {
-		return
-	}
-	bb.CommitsBloom = cbloom
-	bb.Commits = bl.Commits
-	bb.TxBloom = tbloom
-	bb.Transactions = bl.Transactions
-	return
 }
 
 // Encode deterministically encodes a Block to binary format.

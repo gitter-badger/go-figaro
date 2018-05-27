@@ -191,7 +191,7 @@ func (tx Transaction) Validate(db FullChainDataService, block *BlockHeader, comm
 	if err != nil {
 		return false
 	}
-	if !commmitBlock.CommitsBloom.Has(txid) {
+	if !commmitBlock.HasCommit(Commit(txid)) {
 		return false
 	}
 	for _, c := range commmitBlock.Commits {
