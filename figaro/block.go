@@ -196,6 +196,19 @@ func (bl *Block) Seal(db FullChainDataService) error {
 	if err != nil {
 		return err
 	}
+	err = bl.SetBlooms()
+	if err != nil {
+		return err
+	}
+	bl.Timestamp = time.Now()
+	// ensure that ID() will set the cache the first time it is called after sealing,
+	// otherwise an early call could cause sublte bugs
+	bl.id = nil
+	return nil
+}
+
+// SetBlooms recalculates the block bloom filters.
+func (bl *Block) SetBlooms() error {
 	cbloom := bloom.NewWithEstimates(uint64(len(bl.Commits)), bloomfp)
 	for _, c := range bl.Commits {
 		cbloom.Add(c)
@@ -220,10 +233,6 @@ func (bl *Block) Seal(db FullChainDataService) error {
 	bl.cbloom = cbloom
 	bl.TxBloom = txloombits
 	bl.txbloom = txbloom
-	bl.Timestamp = time.Now()
-	// ensure that ID() will set the cache the first time it is called after sealing,
-	// otherwise an early call could cause sublte bugs
-	bl.id = nil
 	return nil
 }
 

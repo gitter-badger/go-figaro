@@ -155,5 +155,6 @@ func (db *DB) hydrateBlock(header *figaro.BlockHeader) (block *figaro.Block, err
 	if err != nil {
 		return
 	}
+	err = block.SetBlooms()
 	return
 }
