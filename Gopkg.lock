@@ -18,6 +18,19 @@
   revision = "5312a61534124124185d41f09206b9fef1d88403"
 
 [[projects]]
+  name = "github.com/awalterschulze/gographviz"
+  packages = [
+    ".",
+    "ast",
+    "internal/errors",
+    "internal/lexer",
+    "internal/parser",
+    "internal/token"
+  ]
+  revision = "c84395e536e1a1199093a4e6253d1bee99e4cd2a"
+  version = "v2.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/btcsuite/btcd"
   packages = ["btcec"]
@@ -210,15 +223,6 @@
   name = "github.com/libp2p/go-addr-util"
   packages = ["."]
   revision = "3bd34419494fb7f15182ddd19a5d92ac017a27c6"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/libp2p/go-floodsub"
-  packages = [
-    ".",
-    "pb"
-  ]
-  revision = "4e84ab6c81c4093552130a69fecfc5afe7c8dbf3"
 
 [[projects]]
   branch = "master"
@@ -613,12 +617,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/whyrusleeping/timecache"
-  packages = ["."]
-  revision = "cfcb2f1abfee846c430233aef0b630a946e0a5a6"
-
-[[projects]]
-  branch = "master"
   name = "github.com/whyrusleeping/yamux"
   packages = ["."]
   revision = "63d22127b261bf7014885d25fabe034bed14f04b"
@@ -686,6 +684,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "273ed23e84f63fe234fba52da60eb9d4d4e11ca8211ff5fa912f922e4f1057e6"
+  inputs-digest = "b7920d39df0b0704ffe5664ff1a6e447a3cf0f44ec5c93bac2021bc653cc4d8f"
   solver-name = "gps-cdcl"
   solver-version = 1

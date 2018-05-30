@@ -42,3 +42,9 @@ Master nodes, in addition to the requirements of a light client, must also valid
 PendingTxList is a list of received transactions awaiting validation, sorted by received timestamp. `QuickCheck` and `VerifySignature` should be called on each (using parallel threads if possible) and the transaction moved to the TxList.
 
 TxList is a map of nonce-ordered future transaction lists by account and a received timestamp ordered list of current transactions to be executed. When a transaction is added to the TxList, it is sorted into the current or future queues based on account nonce. When a transaction is pulled from the current queue, it is added into a block, which will sequentialy validate and execute the transactions in block order.
+
+## Demo
+
+To enable graph visualizations, install Graphviz:
+
+    brew install graphviz

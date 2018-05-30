@@ -1,267 +1,203 @@
+// Package figp2p implements a peer-to-peer network
 package figp2p
 
 import (
 	"context"
-	"errors"
+	"crypto/rand"
 	"fmt"
 	"log"
-	"time"
 
-	libp2p "github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p-peer"
-
-	"github.com/multiformats/go-multihash"
-
-	cid "github.com/ipfs/go-cid"
 	datastore "github.com/ipfs/go-datastore"
-	"github.com/libp2p/go-floodsub"
-	"github.com/libp2p/go-libp2p-host"
+	libp2p "github.com/libp2p/go-libp2p"
+	crypto "github.com/libp2p/go-libp2p-crypto"
+	host "github.com/libp2p/go-libp2p-host"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
+	peer "github.com/libp2p/go-libp2p-peer"
 	peerstore "github.com/libp2p/go-libp2p-peerstore"
-	"github.com/multiformats/go-multiaddr"
+	swarm "github.com/libp2p/go-libp2p-swarm"
+	bhost "github.com/libp2p/go-libp2p/p2p/host/basic"
+	multiaddr "github.com/multiformats/go-multiaddr"
 )
 
-const connectTimeout time.Duration = time.Second * 10
-
-// ErrConnectingToBootstrap indicate a node was unable to connect to any of the specified bootstrap addresses
-var ErrConnectingToBootstrap = errors.New("Unable to connect to a bootstrap node")
-
-// Node implements figaro.Node
+// Node handles communication with Peers on the network
 type Node struct {
-	addresses     []multiaddr.Multiaddr
-	dht           *dht.IpfsDHT
-	fsub          *floodsub.PubSub
-	handlers      *FanoutMux
-	host          *host.Host
-	newMessage    chan *floodsub.Message
-	peers         []peerstore.PeerInfo
-	subscriptions map[string]*floodsub.Subscription
+	addrs            []multiaddr.Multiaddr
+	bootAddrs        []multiaddr.Multiaddr
+	connManager      *ConnManager
+	dht              *dht.IpfsDHT
+	findPeersTrigger chan int
+	host             host.Host
 }
 
 // NewBootstrapNode creates a new Node that is ready to receive peers
-func NewBootstrapNode(ctx context.Context, handlers *FanoutMux) (*Node, error) {
-	node, err := newNode(ctx, handlers)
+// Unlike Nodes, BootstrapNodes do no work other than routing
+func NewBootstrapNode(ctx context.Context) (*Node, error) {
+	node, err := newNode(ctx, []multiaddr.Multiaddr{})
 	if err != nil {
 		return nil, err
 	}
 
-	log.Println(node.ID(), "Setting as a bootstrap node")
-	node.dht = dht.NewDHT(ctx, *node.host, datastore.NewMapDatastore())
+	// BootstrapNode DHT applies stream handlers, waiting for clients to connect
+	node.dht = dht.NewDHT(ctx, node.host, datastore.NewMapDatastore())
 
 	return node, nil
 }
 
-// NewNode creates a new Node that connects to a bootstrap Node
-func NewNode(ctx context.Context, bootstrapAddresses []string, rendezvousName string, handlers *FanoutMux) (*Node, error) {
-	node, err := newNode(ctx, handlers)
+// NewNode creates a new Node that immediately connects to a Bootstrap Node
+func NewNode(ctx context.Context, bootAddrs []multiaddr.Multiaddr) (*Node, error) {
+	node, err := newNode(ctx, bootAddrs)
 	if err != nil {
 		return nil, err
 	}
 
-	node.dht = dht.NewDHTClient(ctx, *node.host, datastore.NewMapDatastore())
-
-	connectSuccess := false
-	for _, bootstrapAddress := range bootstrapAddresses {
-		bootMultiAddr, err := multiaddr.NewMultiaddr(bootstrapAddress)
-		if err != nil {
-			return nil, err
-		}
-
-		pinfo, _ := peerstore.InfoFromP2pAddr(bootMultiAddr)
-		if err := (*node.host).Connect(ctx, *pinfo); err != nil {
-			log.Println(node.ID(), "Error connecting to peer", bootstrapAddress, err)
-		}
-		connectSuccess = true
-		break
-	}
-
-	if connectSuccess != true {
-		return nil, ErrConnectingToBootstrap
-	}
-
-	rdvAddr, _ := cid.NewPrefixV1(cid.Raw, multihash.SHA2_256).Sum([]byte(rendezvousName))
-
-	tctx, cancel := context.WithTimeout(ctx, connectTimeout)
-	defer cancel()
-
-	log.Println(node.ID(), "Announcing self")
-	if err := node.dht.Provide(tctx, rdvAddr, true); err != nil {
-		log.Println(node.ID(), "Error announcing self", err)
-		return nil, err
-	}
-
-	tctx, cancel = context.WithTimeout(ctx, connectTimeout)
-	defer cancel()
-
-	log.Println(node.ID(), "Finding peers")
-	peers, err := node.dht.FindProviders(tctx, rdvAddr)
-	if err != nil {
-		log.Println(node.ID(), "Error findind peers", err)
-		return nil, err
-	}
-	log.Println(node.ID(), fmt.Sprintf("Found %d peers", len(peers)))
-
-	for _, peer := range peers {
-		node.peers = append(node.peers, peer)
-	}
+	// Node DHTs will open streams with remote hosts once a connection is made
+	node.dht = dht.NewDHTClient(ctx, node.host, datastore.NewMapDatastore())
 
 	return node, nil
 }
 
-func newNode(ctx context.Context, handlers *FanoutMux) (*Node, error) {
-	// Create a Host
-	log.Println("Creating a new host")
-	host, err := libp2p.New(ctx, libp2p.Defaults)
+// newNode creates a generalized node for use with Node or BootstrapNode
+func newNode(ctx context.Context, bootAddrs []multiaddr.Multiaddr) (*Node, error) {
+	node := &Node{}
+
+	// Not a huge fan of having the ConnManager know about a node, but the
+	// manager needs to be able to create connections and periodically find the
+	// closest peers. Another approach would be to send in a func or a channel
+	// that would be told to find new peers.
+	connManager := NewConnManager(node, bootAddrs)
+	node.connManager = connManager
+
+	host, err := newHost(ctx, connManager)
 	if err != nil {
-		log.Println("Error creating a new host", err)
 		return nil, err
 	}
+	node.host = host
+
+	// Create a multiaddr.Multiaddr with the ID of the node appended on. This is
+	// only used when you'd like a Node to connect diretly to anothernode by
+	// that address, as in the case of a Node connecting to a Bootstrap Node.
 	nodeID := host.ID().Pretty()
-	log.Println(nodeID, "Created a new host")
-
-	// Create the Node's Addresses
-	var addresses []multiaddr.Multiaddr
+	var addrs []multiaddr.Multiaddr
 	for _, hostAddress := range host.Addrs() {
-		addr, err := multiaddr.NewMultiaddr(fmt.Sprintf("%s/ipfs/%s", hostAddress, nodeID))
+		addr, err := multiaddr.NewMultiaddr(
+			fmt.Sprintf("%s/ipfs/%s", hostAddress, nodeID))
 
 		if err != nil {
 			log.Println("Error creating host address", err)
 			return nil, err
 		}
-		addresses = append(addresses, addr)
+		addrs = append(addrs, addr)
 	}
+	node.addrs = addrs
 
-	// Create a PubSub, attaching the host
-	log.Println(nodeID, "Creating a new pubsub")
-	fsub, err := floodsub.NewFloodSub(ctx, host)
+	return node, nil
+}
+
+// newHost returns a libp2p host.Host that wraps a libp2p Swarm Network. The
+// libp2p swarm manages groups of connections to peers, and handles incoming and
+// outgoing streams
+func newHost(ctx context.Context, connManager *ConnManager) (host.Host, error) {
+	addr, err := multiaddr.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
 	if err != nil {
-		log.Println("Error creating a new pubsub", err)
 		return nil, err
 	}
 
-	// Replace the nodeIDTopic placeholder with the actual nodeID
-	handlers.Set(nodeID, handlers.Get(nodeIDTopic))
-	handlers.Delete(nodeIDTopic)
+	listenAddrs := []multiaddr.Multiaddr{addr}
 
-	return &Node{
-		addresses:     addresses,
-		fsub:          fsub,
-		host:          &host,
-		handlers:      handlers,
-		newMessage:    make(chan *floodsub.Message),
-		subscriptions: make(map[string]*floodsub.Subscription),
-	}, nil
-}
-
-// Bootstrap starts a standalone network that will be connected to by other Nodes
-func (n *Node) Bootstrap(ctx context.Context) {
-	log.Println(n.ID(), "Setting as a bootstrap node")
-	n.dht = dht.NewDHT(ctx, *n.host, datastore.NewMapDatastore())
-}
-
-// Broadcast sends out a message to all peer Nodes that are subscribed to the given topic
-func (n *Node) Broadcast(ctx context.Context, topicName string, msg []byte) error {
-	log.Println(n.ID(), "Broadcasting message: ", string(msg))
-	return n.fsub.Publish(topicName, msg)
-}
-
-// FullAddresses returns a string version of the Node's transport address
-func (n *Node) FullAddresses() []string {
-	var addresses []string
-	for _, addr := range n.addresses {
-		addresses = append(addresses, addr.String())
-	}
-	return addresses
-	// return (*n.addr).String()
-}
-
-// ID returns a string version of a Node's ID
-func (n *Node) ID() string {
-	return (*n.host).ID().Pretty()
-}
-
-// Listen subscribes to all topics preregisted through the FanoutMux, starts
-// listening to incoming messages, and routes them to the appropriate Handler
-func (n *Node) Listen(ctx context.Context) {
-	n.subscribeToRegisteredHandlers()
-
-	for _, sub := range n.subscriptions {
-		go n.listenToSubscription(ctx, sub)
+	// TODO: switch to figcrypto/fastsig.GenerateKey()
+	priv, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, rand.Reader)
+	if err != nil {
+		return nil, err
 	}
 
-	n.listenForIncomingMessages(ctx)
-}
-
-// listenForIncomingMessages reads messages in priority order and calls the
-// appropriate Handler, optionally closing when the context ends
-func (n *Node) listenForIncomingMessages(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			break
-		// case newConnection<-newConnectionChan:
-		//  DOSOMETHING
-		// 	break
-		case msg := <-n.newMessage:
-			topicName := msg.GetTopicIDs()[0]
-			msgHandlers := n.handlers.Get(topicName)
-			for _, handler := range msgHandlers {
-				// Should we be calling these handlers asynchronously?
-				// go handler(msg)
-				handler(n, msg)
-			}
-		}
-	}
-}
-
-// listenToSubscription waits for new messages on a subscription
-// and sends the messages into the Node's Message channel
-func (n *Node) listenToSubscription(ctx context.Context, sub *floodsub.Subscription) {
-	for {
-		msg, err := sub.Next(ctx)
-		if err != nil {
-			break
-		}
-		n.newMessage <- msg
-	}
-}
-
-// PeerID returns the peer.ID of a Node
-func (n *Node) PeerID() peer.ID {
-	return (*n.host).ID()
-}
-
-// Send sends a message directly to a peer Node
-func (n *Node) Send(peerID peer.ID, data []byte) {
-	log.Println(n.ID(), "Sending message", string(data))
-	n.fsub.Publish(peerID.Pretty(), data)
-}
-
-// subscribe subscribes a Node to a particular topic
-func (n *Node) subscribe(topicName string) error {
-	if sub := n.subscriptions[topicName]; sub != nil {
-		log.Println(n.ID(), "Already subscribed to", topicName)
-		return nil
+	pid, err := peer.IDFromPublicKey(priv.GetPublic())
+	if err != nil {
+		return nil, err
 	}
 
-	log.Println(n.ID(), "Subscribing to", topicName)
-	sub, err := n.fsub.Subscribe(topicName)
+	ps := peerstore.NewPeerstore()
+	ps.AddPrivKey(pid, priv)
+	ps.AddPubKey(pid, priv.GetPublic())
+
+	muxer := libp2p.DefaultMuxer()
+	swrm, err := swarm.NewSwarmWithProtector(ctx, listenAddrs, pid, ps, nil, muxer, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	netw := (*swarm.Network)(swrm)
+
+	return bhost.NewHost(ctx, netw, &bhost.HostOpts{
+		ConnManager: connManager,
+	})
+}
+
+// Addrs returns a slice of fully formed connection strings for use when
+// newly connecting a Node to a network.
+func (n *Node) Addrs() []multiaddr.Multiaddr {
+	return n.addrs
+}
+
+// Broadcast NEEDSTOBEIMPLEMENTED
+func (n *Node) Broadcast(message []byte) {
+}
+
+// ConnectToPeer connects to a peer by the PeerID
+func (n *Node) ConnectToPeer(ctx context.Context, peerID peer.ID) error {
+	peerInfo := n.Host().Peerstore().PeerInfo(peerID)
+	return n.host.Connect(ctx, peerInfo)
+}
+
+// ConnectToAddr connects to a peer by supplied addr
+func (n *Node) ConnectToAddr(ctx context.Context, addr multiaddr.Multiaddr) error {
+	peerInfo, err := peerstore.InfoFromP2pAddr(addr)
 	if err != nil {
 		return err
 	}
-	n.subscriptions[topicName] = sub
-
-	return nil
+	return n.host.Connect(ctx, *peerInfo)
 }
 
-// subscribeToRegisteredHandlers runs through all registred
-// handlers and subscribes the node to the appropriate topic
-func (n *Node) subscribeToRegisteredHandlers() error {
-	for _, key := range n.handlers.Keys() {
-		err := n.subscribe(key)
-		if err != nil {
-			return err
+// GetClosestPeers returns a list of the closest peers to the node
+func (n *Node) GetClosestPeers(ctx context.Context) ([]peer.ID, error) {
+	closestPeersChan, err := n.dht.GetClosestPeers(ctx, n.ID().Pretty())
+	if err != nil {
+		return nil, err
+	}
+
+	closestPeers := make([]peer.ID, 0)
+	for peer := range closestPeersChan {
+		closestPeers = append(closestPeers, peer)
+	}
+	return closestPeers, nil
+}
+
+// Host returns the libp2p Host, which handles Connecting and opening new
+// Streams with peers.
+func (n *Node) Host() host.Host {
+	return n.host
+}
+
+// ID returns the unique identifier of a Node on a network.
+func (n *Node) ID() peer.ID {
+	return n.host.ID()
+}
+
+// Send NEEDSTOBEIMPLEMENTED
+func (n *Node) Send(message []byte, peerID peer.ID) {
+}
+
+// Start forms a connection to a BootstrapNode, based on the bootAddrs that were
+// supplied on initialization. Upon connection, the Node will find the closest
+// peers with which it should form a permanent connection.
+func (n *Node) Start(ctx context.Context) {
+	n.dht.Bootstrap(ctx)
+
+	go n.connManager.Start(ctx)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
 		}
 	}
-	return nil
 }

@@ -46,20 +46,9 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/libp2p/go-floodsub"
-
-[[constraint]]
-  branch = "master"
-  name = "github.com/multiformats/go-multihash"
-
-[[constraint]]
-  branch = "master"
   name = "github.com/multiformats/go-multiaddr"
 
-[[constraint]]
-  branch = "master"
-  name = "github.com/ipfs/go-cid"
-
+# TODO: Attempt to Remove
 [[constraint]]
   branch = "master"
   name = "github.com/ipfs/go-datastore"
