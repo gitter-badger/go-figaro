@@ -14,6 +14,7 @@ const MaxCodeSize = 24576
 type Account struct {
 	Address     Address
 	Nonce       uint64
+	Bonded      bool
 	Stake       uint64
 	Balance     uint64
 	StorageRoot Root
@@ -27,6 +28,7 @@ func (acc Account) Encode() ([]byte, error) {
 
 	return enc.EncodeList(func(buf []byte) []byte {
 		buf = enc.EncodeNextUint64(buf, acc.Nonce)
+		buf = enc.EncodeNextBool(buf, acc.Bonded)
 		buf = enc.EncodeNextUint64(buf, acc.Stake)
 		buf = enc.EncodeNextUint64(buf, acc.Balance)
 		buf = enc.EncodeNextBytes(buf, acc.StorageRoot)
@@ -42,20 +44,18 @@ func (acc *Account) Decode(buf []byte) error {
 
 	return dec.DecodeList(buf, func(r []byte) []byte {
 		acc.Nonce, r = dec.DecodeNextUint64(r)
+		acc.Bonded, r = dec.DecodeNextBool(r)
 		acc.Stake, r = dec.DecodeNextUint64(r)
 		acc.Balance, r = dec.DecodeNextUint64(r)
 		acc.StorageRoot, r = dec.DecodeNextBytes(r)
-		if !acc.StorageRoot.Valid() {
-			panic("storage root not valid")
-		}
 		acc.Code, r = dec.DecodeNextBytes(r)
 		return r
 	})
 }
 
-// AccountFetchService can retreive data from either the local database
+// AccountLDataService can retreive data from either the local database
 // or the p2p network.
-type AccountFetchService interface {
+type AccountLDataService interface {
 	FetchAccount(root Root, address Address) (*Account, error)
 	ProveAccount(root Root, address Address) (*Account, [][][]byte, error)
 	ValidateAccount(root Root, account *Account, proof [][][]byte) bool
@@ -67,7 +67,7 @@ type AccountFetchService interface {
 
 // AccountDataService should implement a Merkle database mapped to an account.
 type AccountDataService interface {
-	AccountFetchService
-	SaveAccount(root Root, account *Account) Root
-	SaveAccountStorage(root Root, account *Account, key, data []byte) Root
+	AccountLDataService
+	SaveAccount(root Root, account *Account) (Root, error)
+	SaveAccountStorage(root Root, account *Account, key, data []byte) (Root, error)
 }

@@ -63,7 +63,16 @@ func (ks *KeyStore) Batch() {
 	ks.batch = true
 }
 
-// Write avees all pending updates in the batch
+// Discard abandons all pending updates in the batch
+func (ks *KeyStore) Discard() {
+	ks.lock.Lock()
+	defer ks.lock.Unlock()
+
+	ks.batch = false
+	ks.pending = ks.pending[:0]
+}
+
+// Write saves all pending updates in the batch
 func (ks *KeyStore) Write() error {
 	ks.lock.Lock()
 	defer ks.lock.Unlock()

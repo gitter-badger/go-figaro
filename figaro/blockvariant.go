@@ -16,11 +16,7 @@ func (bl Block) Ref() (rf *RefBlock) {
 	rf.Commits = bl.Commits
 	rf.TxIDs = make([]TxHash, len(bl.Transactions))
 	for i, t := range bl.Transactions {
-		id, err := t.ID()
-		if err != nil {
-			panic("error getting transaction id")
-		}
-		rf.TxIDs[i] = id
+		rf.TxIDs[i] = t.ID
 	}
 	return
 }

@@ -4,22 +4,27 @@ package figaro
 // ConsensusEngine implements the rules by which things are validated. It handles
 // enforcement of configurable rules, while types handle enforcement of static rules.
 type ConsensusEngine interface {
-	// ValidateBlockProducer should validate whether the block is valid according to consensus rules. It
-	// has sole responsibility for determining whether the producer is valid, but can assume
-	// the signature is already validated.
-	ValidateBlockProducer(db FullChainDataService, block *Block) bool
+	// NextBlockProducer must deterministically decide on the next block producer
+	// masternode address based on the previous block.
+	NextBlockProducer(db FullDataService, prevblock BlockHash) (Address, error)
 
-	// ValidateBlockTxs should validate whether the block is valid according to consensus rules. It
-	// has sole responsibility for determining whether transactions signatures are valid or fraudulent,
-	// and handle the case of fraudulent signatures in the block.
-	ValidateBlockTxs(db FullChainDataService, block *Block) bool
+	// HandleFraud is responsible for enforcing conensus rules when a block is found to
+	// contain fraudulent transactions or headers.
+	HandleFraud(db FullDataService, fraudblock *BlockHeader) error
 
-	// HandleFraudHeaders has sole responsiblity for handling the case where a block is found to contain
-	// invalid headers (roots don't validate), including determining and penalizing fraud.
-	HandleInvalidHeaders(db FullChainDataService, block *Block) error
-
-	// HandleDivergence is responsibile for determining a canonical chain in the event of divergent,
-	// but otherwise valid, chains/blocks. It should return the new chain whose head is at the fork,
+	// ChainReorg is responsibile for determining a canonical chain in the event of divergent,
+	// but otherwise valid, chains/blocks. It receives the current chain, the block that would conflict
+	// with the current chain head, and the list of pending fugure blocks. It should return the new chain,
 	// along with the next and future blocks in the canonical chain.
-	HandleDivergence(db FullChainDataService, chain Chain, block *Block, futureblocks *BlockHeap) (Chain, Block, BlockHeap, error)
+	ChainReorg(db FullDataService, chain *Chain, forkblock *BlockHeader, futureblocks *BlockHeap) (*Chain, *BlockHeader, *BlockHeap, error)
+}
+
+// FullDataService provides full data for all chain types.
+type FullDataService interface {
+	AccountDataService
+	CommitDataService
+	TransactionDataService
+	ReceiptDataService
+	BlockDataService
+	ChainDataService
 }

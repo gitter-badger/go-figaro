@@ -144,6 +144,19 @@ func (ks *KeyStore) Batch() {
 	ks.batch = true
 }
 
+// Discard abandons all pending updates in the batch
+func (ks *KeyStore) Discard() {
+	if ks.DB == nil {
+		log.Panic(ErrCalledAfterClose)
+	}
+
+	ks.block.Lock()
+	defer ks.block.Unlock()
+
+	ks.batch = false
+	ks.batchDB = nil
+}
+
 // Write savees all pending updates in the batch
 func (ks *KeyStore) Write() error {
 	if ks.DB == nil {
@@ -164,6 +177,7 @@ func (ks *KeyStore) Write() error {
 	err := ks.BatchUpdate(pending)
 
 	ks.batch = false
+	ks.batchDB = nil
 	return err
 }
 

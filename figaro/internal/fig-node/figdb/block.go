@@ -20,37 +20,18 @@ type blockCacheItem struct {
 	comp   figaro.CompBlock
 }
 
-// SaveBlockHeader saves a block hearder. It can be retreived by ID.
-// Typically used by light clients that only ever need to save the block header.
-func (db *DB) SaveBlockHeader(header *figaro.BlockHeader) error {
-	id, err := header.ID()
+// SaveBlock saves a block. It can be retreived by ID.
+func (db *DB) SaveBlock(block *figaro.Block) error {
+	// We only save the header, everything else is saved separately
+	value, err := block.BlockHeader.Encode()
 	if err != nil {
 		return err
 	}
-	value, err := header.Encode()
-	if err != nil {
-		return err
-	}
-	key := hasher.Hash256(blockprefix[:], id)
+	key := hasher.Hash256(blockprefix[:], block.ID)
 	err = db.Store.Set(key, value)
 	if err != nil {
 		return err
 	}
-	return nil
-}
-
-// SaveBlock saves a block. It can be retreived by ID.
-func (db *DB) SaveBlock(block *figaro.Block) error {
-	// Always save the blockheader
-	id, err := block.ID()
-	if err != nil {
-		return err
-	}
-	err = db.SaveBlockHeader(block.BlockHeader)
-	if err != nil {
-		return err
-	}
-	key := hasher.Hash256(blockprefix[:], id)
 	ref := block.Ref()
 	comp := block.Compress()
 	item := &blockCacheItem{
@@ -98,7 +79,7 @@ func (db *DB) FetchCompBlock(id figaro.BlockHash) (cblock *figaro.CompBlock, err
 	if err != nil {
 		return
 	}
-	block, err := db.hydrateBlock(header)
+	block, err := db.HydrateBlock(header)
 	if err != nil {
 		return
 	}
@@ -121,7 +102,7 @@ func (db *DB) FetchRefBlock(id figaro.BlockHash) (rblock *figaro.RefBlock, err e
 		return
 	}
 	var block *figaro.Block
-	block, err = db.hydrateBlock(header)
+	block, err = db.HydrateBlock(header)
 	if err != nil {
 		return
 	}
@@ -141,11 +122,13 @@ func (db *DB) FetchBlock(id figaro.BlockHash) (block *figaro.Block, err error) {
 	if err != nil {
 		return nil, err
 	}
-	block, err = db.hydrateBlock(header)
+	block, err = db.HydrateBlock(header)
 	return
 }
 
-func (db *DB) hydrateBlock(header *figaro.BlockHeader) (block *figaro.Block, err error) {
+// HydrateBlock creates a block from a BlockHeader by retreiving missing
+// data from the database.
+func (db *DB) HydrateBlock(header *figaro.BlockHeader) (block *figaro.Block, err error) {
 	block.BlockHeader = header
 	block.Commits, err = db.RetrieveCommits(block.CommitsRoot)
 	if err != nil {

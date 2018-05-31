@@ -6,17 +6,16 @@ import (
 	"time"
 )
 
-// A ReceivedCommit is a Commit that is waiting to be mined into a block.
-type ReceivedCommit struct {
-	Commit
-
-	Received time.Time
+// NewCommit creates a commit for a given transaction.
+func NewCommit(tx *Transaction) (TxHash, error) {
+	if len(tx.ID) == TxHashSize {
+		return tx.ID, nil
+	}
+	return tx.ToHash()
 }
 
-// A Commit is sent prior to sending a transaction, according to a Wait/TTL block scheme. It must
-// be mined into a block by creating set membership data that can be queried. It consists of a hash
-// and is validated against a future transaction by comparing the hash to the Commit, which should
-// be identical.
+// A Commit is sent prior to sending a transaction, according to a Wait/TTL block scheme. It
+// is derived from the transaction hash/id.
 type Commit TxHash
 
 // CommitLDataService implements limited local data commits.
@@ -31,6 +30,13 @@ type CommitLDataService interface {
 type CommitDataService interface {
 	ArchiveCommits(commits []Commit) (root Root, err error)
 	CommitLDataService
+}
+
+// A ReceivedCommit is a Commit that is waiting to be mined into a block.
+type ReceivedCommit struct {
+	Commit
+
+	Received time.Time
 }
 
 // NewCommitHeap returns a CommitHeap, ready to use.

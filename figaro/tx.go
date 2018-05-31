@@ -2,8 +2,7 @@
 package figaro
 
 import (
-	"bytes"
-	"log"
+	"errors"
 	"time"
 
 	"github.com/figaro-tech/go-figaro/figbuf"
@@ -11,22 +10,21 @@ import (
 	"github.com/figaro-tech/go-figaro/figcrypto/signature/fastsig"
 )
 
+var (
+	// ErrInvalidTransaction is a self-explantory error
+	ErrInvalidTransaction = errors.New("figaro tx: invalid transaction")
+)
+
 // MaxTxDataSize is the max length, in bytes, of tx data. This is
 // a network configuration value, and does not impact consensus or validation
 // of existing data.
 const MaxTxDataSize = 4096
 
-// A ReceivedTx is a Transaction that is waiting to be mined into a block.
-type ReceivedTx struct {
-	Transaction
-
-	Received time.Time
-}
-
 // A Transaction must be mined into a block. It contains transaction information along with a
 // cryptographic signature over the Transaction hash by the sender, and a nonce value which
 // must match the account nonce of the sender at the time it is mined into a block.
 type Transaction struct {
+	ID          []byte
 	Signature   []byte
 	From        Address
 	To          Address
@@ -35,270 +33,30 @@ type Transaction struct {
 	CommitBlock uint64
 	Value       uint64
 	Data        []byte
-
-	// Sender is responsible for providing commit block,
-	// this saves processing time by server, but also
-	// helps ensure sender and receiver are on same
-	// canonical chain
-
-	// local data
-	id []byte
 }
 
-// ID hashes the Tx fields other than Signature, creating a unique ID.
-func (tx Transaction) ID() (txh TxHash, err error) {
-	if len(tx.id) == 32 {
-		txh = make(TxHash, len(tx.id))
-		copy(txh, tx.id)
-		return
-	}
-
+// ToHash hashes the Tx fields other than Signature, creating a unique ID.
+func (tx Transaction) ToHash() (TxHash, error) {
 	enc := figbuf.EncoderPool.Get().(*figbuf.Encoder)
 	defer figbuf.EncoderPool.Put(enc)
 
-	var e []byte
-	e, err = enc.Encode(tx.Nonce, tx.CommitBlock, tx.From, tx.To, tx.Type, tx.Value, tx.Data)
+	e, err := enc.Encode(tx.Nonce, tx.CommitBlock, tx.From, tx.To, tx.Type, tx.Value, tx.Data)
 	if err != nil {
-		return
+		return nil, err
 	}
-	txh = hasher.Hash256(e)
-	tx.id = make([]byte, 32)
-	copy(tx.id, txh)
-	return
+	return hasher.Hash256(e), nil
 }
 
 // Sign cryptographically signs a transaction.
 func (tx *Transaction) Sign(privkey []byte) error {
-	h, err := tx.ID()
-	if err != nil {
-		return err
-	}
-	sig, err := fastsig.Sign(privkey, h)
-	if err != nil {
-		return err
-	}
-	tx.Signature = sig
-	return nil
+	var err error
+	tx.Signature, err = fastsig.Sign(privkey, tx.ID)
+	return err
 }
 
-// VerifySignature verifies the address that signed the transaction. It returns
-// false if the transaction is not signed. If this check does not pass, the transaction
-// should be rejected and no further processing is required.
+// VerifySignature verifies the address that signed the transaction.
 func (tx Transaction) VerifySignature() bool {
-	h, err := tx.ID()
-	if err != nil {
-		return false
-	}
-	return fastsig.Verify(tx.From, tx.Signature, h)
-}
-
-// Ordinal returns 1 if this is a future tx, 0 if it is a current tx, and -1 if this is a stale tx.
-// Ordinality is only valid in reference to the given state root.
-func (tx Transaction) Ordinal(db AccountFetchService, root Root) int {
-	fromAcc, err := db.FetchAccount(root, tx.From)
-	if err != nil {
-		log.Panic(err)
-	}
-	if tx.Nonce > fromAcc.Nonce {
-		return 1
-	}
-	if tx.Nonce < fromAcc.Nonce {
-		return -1
-	}
-	return 0
-}
-
-// Validate returns whether the transaction will fail if it is processed as the next transaction.
-func (tx Transaction) Validate(db FullChainDataService, block *BlockHeader, commmitBlock *Block) bool {
-	// Is a valid TxType
-	if !ValidTxType(tx.Type) {
-		return false
-	}
-	// Follows data limits
-	if len(tx.Data) > MaxTxDataSize {
-		return false
-	}
-	// Is signed
-	if len(tx.Signature) < fastsig.SignatureSize {
-		return false
-	}
-	fromAcc, err := db.FetchAccount(block.StateRoot, tx.From)
-	if err != nil {
-		log.Panic(err)
-	}
-	// Sanity check
-	if tx.CommitBlock != commmitBlock.Number {
-		return false
-	}
-	// MPTx rules
-	diffN := block.Number - commmitBlock.Number
-	if diffN < uint64(block.WaitBlocks) || diffN > 2*uint64(block.WaitBlocks)+1 {
-		return false
-	}
-	txid, err := tx.ID()
-	if err != nil {
-		return false
-	}
-	if !commmitBlock.HasCommit(Commit(txid)) {
-		return false
-	}
-	for _, c := range commmitBlock.Commits {
-		if bytes.Equal(c, txid) {
-			break
-		}
-		return false
-	}
-	// commit fees use rules/beneficiary from commit block
-	var totalFees uint32
-	if !commmitBlock.Beneficiary.IsZeroAddress() {
-		totalFees += commmitBlock.CommitFee
-	}
-	if !block.Beneficiary.IsZeroAddress() {
-		totalFees += block.TxFee
-	}
-	// No free money (valid type check already occured)
-	if tx.Type == StakeTx && (tx.Value > fromAcc.Stake || uint64(totalFees) > fromAcc.Balance) {
-		return false
-	} else if tx.Type == BalanceTx && (uint64(totalFees)+tx.Value) > fromAcc.Balance {
-		return false
-	}
-	return true
-}
-
-// Execute executes a transaction, returning a transaction Receipt. It assumes
-// that the transaction is valid for processing, and will perform no checks.
-func (tx Transaction) Execute(db FullChainDataService, index uint16, block, commitBlock *BlockHeader) (newroot Root, receipt *Receipt, err error) {
-	var fromAcc, toAcc, cbAcc, txbAcc *Account
-	fromAcc, err = db.FetchAccount(block.StateRoot, tx.From)
-	if err != nil {
-		return
-	}
-	toAcc, err = db.FetchAccount(block.StateRoot, tx.To)
-	if err != nil {
-		return
-	}
-	fromAcc.Nonce++
-	var totalFees uint32
-	if !commitBlock.Beneficiary.IsZeroAddress() {
-		cbAcc, err = db.FetchAccount(block.StateRoot, commitBlock.Beneficiary)
-		if err != nil {
-			return
-		}
-		cbAcc.Balance += uint64(commitBlock.CommitFee)
-		fromAcc.Balance -= uint64(commitBlock.CommitFee)
-		totalFees += commitBlock.CommitFee
-	}
-	if !block.Beneficiary.IsZeroAddress() {
-		txbAcc, err = db.FetchAccount(block.StateRoot, block.Beneficiary)
-		if err != nil {
-			return
-		}
-		txbAcc.Balance += uint64(block.TxFee)
-		fromAcc.Balance -= uint64(block.TxFee)
-		totalFees += block.TxFee
-	}
-	if tx.Type == BalanceTx {
-		fromAcc.Balance -= tx.Value
-		toAcc.Balance += tx.Value
-	} else if tx.Type == StakeTx {
-		fromAcc.Stake -= tx.Value
-		toAcc.Stake += tx.Value
-	}
-	// TODO: create contract or execute data against contract
-	newroot = block.StateRoot
-	newroot = db.SaveAccount(newroot, fromAcc)
-	newroot = db.SaveAccount(newroot, toAcc)
-	newroot = db.SaveAccount(newroot, cbAcc)
-	newroot = db.SaveAccount(newroot, txbAcc)
-	var h TxHash
-	h, err = tx.ID()
-	if err != nil {
-		return
-	}
-	receipt = &Receipt{
-		TxID:          h,
-		BlockNum:      block.Number,
-		Index:         index,
-		PrevStateRoot: block.StateRoot,
-		StateRoot:     newroot,
-		TotalFees:     totalFees,
-		Success:       true,
-	}
-	return
-}
-
-// ExecuteInvalid executes an invalid transaction, returning a transaction Receipt. It assumes
-// that the transaction is invalid for processing, and will perform no checks. Invalid executions
-// still pay fees to discourage spam txs, and still generate a receipt.
-func (tx Transaction) ExecuteInvalid(db AccountDataService, index uint16, block, commitBlock *BlockHeader) (newroot Root, receipt *Receipt, err error) {
-	var fromAcc, toAcc, cbAcc, txbAcc *Account
-	fromAcc, err = db.FetchAccount(block.StateRoot, tx.From)
-	if err != nil {
-		return
-	}
-	toAcc, err = db.FetchAccount(block.StateRoot, tx.To)
-	if err != nil {
-		return
-	}
-	fromAcc.Nonce++
-	var totalFees uint32
-	var feeRatio float64
-	if !commitBlock.Beneficiary.IsZeroAddress() {
-		totalFees += commitBlock.CommitFee
-	}
-	if !block.Beneficiary.IsZeroAddress() {
-		totalFees += block.TxFee
-	}
-	if uint64(totalFees) > fromAcc.Balance {
-		feeRatio = float64(fromAcc.Balance) / float64(totalFees)
-	} else {
-		feeRatio = 1
-	}
-	if !commitBlock.Beneficiary.IsZeroAddress() {
-		cbAcc, err = db.FetchAccount(block.StateRoot, commitBlock.Beneficiary)
-		if err != nil {
-			return
-		}
-		cfee := uint64(feeRatio * float64(commitBlock.CommitFee))
-		if cfee > fromAcc.Balance {
-			panic("invalid commit fee")
-		}
-		cbAcc.Balance += uint64(cfee)
-		fromAcc.Balance -= uint64(cfee)
-
-	}
-	if !block.Beneficiary.IsZeroAddress() {
-		txbAcc, err = db.FetchAccount(block.StateRoot, block.Beneficiary)
-		if err != nil {
-			return
-		}
-		txfee := uint64(feeRatio * float64(block.TxFee))
-		if txfee > fromAcc.Balance {
-			panic("invalid tx fee")
-		}
-		txbAcc.Balance += uint64(txfee)
-		fromAcc.Balance -= uint64(txfee)
-	}
-	newroot = block.StateRoot
-	newroot = db.SaveAccount(newroot, fromAcc)
-	newroot = db.SaveAccount(newroot, toAcc)
-	newroot = db.SaveAccount(newroot, cbAcc)
-	newroot = db.SaveAccount(newroot, txbAcc)
-	var h TxHash
-	h, err = tx.ID()
-	if err != nil {
-		return
-	}
-	receipt = &Receipt{
-		TxID:          h,
-		BlockNum:      block.Number,
-		Index:         index,
-		PrevStateRoot: block.StateRoot,
-		StateRoot:     newroot,
-		TotalFees:     totalFees,
-		Success:       false,
-	}
-	return
+	return fastsig.Verify(tx.From, tx.Signature, tx.ID)
 }
 
 // Encode deterministically encodes a transaction to binary format.
@@ -349,6 +107,25 @@ type TransactionLDataService interface {
 type TransactionDataService interface {
 	ArchiveTransactions(transactions []*Transaction) (root Root, err error)
 	TransactionLDataService
+}
+
+// A ReceivedTx is a Transaction that is waiting to be processed.
+type ReceivedTx struct {
+	Transaction
+
+	Received time.Time
+}
+
+// Ordinal returns 1 if this is a future tx, 0 if it is a current tx, and -1 if this is a stale tx.
+// Ordinality is only valid in reference to the given account nonce.
+func (tx ReceivedTx) Ordinal(accnonce uint64) int {
+	if tx.Nonce > accnonce {
+		return 1
+	}
+	if tx.Nonce < accnonce {
+		return -1
+	}
+	return 0
 }
 
 // TxReceivedHeap is a priority Heap of pending transactions, sorted by Received timestamp.

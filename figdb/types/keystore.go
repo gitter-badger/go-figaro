@@ -18,6 +18,7 @@ type KeyStore interface {
 	Delete(key Key) error
 	Batch()
 	Write() error
+	Discard()
 	BatchUpdate(updates KeyStoreUpdateBatch) error
 }
 
