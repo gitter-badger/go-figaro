@@ -5,14 +5,20 @@ import (
 	"context"
 	"errors"
 
+	ropts "github.com/libp2p/go-libp2p-routing/options"
+
 	cid "github.com/ipfs/go-cid"
 	ci "github.com/libp2p/go-libp2p-crypto"
 	peer "github.com/libp2p/go-libp2p-peer"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
 )
 
-// ErrNotFound is returned when a search fails to find anything
+// ErrNotFound is returned when the router fails to find the requested record.
 var ErrNotFound = errors.New("routing: not found")
+
+// ErrNotSupported is returned when the router doesn't support the given record
+// type/operation.
+var ErrNotSupported = errors.New("routing: operation or key not supported")
 
 // ContentRouting is a value provider layer of indirection. It is used to find
 // information about who has what content.
@@ -20,10 +26,10 @@ type ContentRouting interface {
 	// Provide adds the given cid to the content routing system. If 'true' is
 	// passed, it also announces it, otherwise it is just kept in the local
 	// accounting of which objects are being provided.
-	Provide(context.Context, *cid.Cid, bool) error
+	Provide(context.Context, cid.Cid, bool) error
 
 	// Search for peers who are able to provide a given key
-	FindProvidersAsync(context.Context, *cid.Cid, int) <-chan pstore.PeerInfo
+	FindProvidersAsync(context.Context, cid.Cid, int) <-chan pstore.PeerInfo
 }
 
 // PeerRouting is a way to find information about certain peers.
@@ -36,26 +42,25 @@ type PeerRouting interface {
 	FindPeer(context.Context, peer.ID) (pstore.PeerInfo, error)
 }
 
+// ValueStore is a basic Put/Get interface.
 type ValueStore interface {
-	// Basic Put/Get
 
 	// PutValue adds value corresponding to given Key.
-	PutValue(context.Context, string, []byte) error
+	PutValue(context.Context, string, []byte, ...ropts.Option) error
 
 	// GetValue searches for the value corresponding to given Key.
-	GetValue(context.Context, string) ([]byte, error)
+	GetValue(context.Context, string, ...ropts.Option) ([]byte, error)
 
-	// GetValues searches for values corresponding to given Key.
+	// SearchValue searches for better and better values from this value
+	// store corresponding to the given Key. Implementations may halt the
+	// search after a period of time or may continue searching indefinitely.
 	//
-	// Passing a value of '0' for the count argument will cause the
-	// routing interface to return values only from cached or local storage
-	// and return an error if no cached value is found.
+	// Useful when you want a result *now* but still want to hear about
+	// better/newer results.
 	//
-	// Passing a value of '1' will return a local value if found, and query
-	// the network for the first value it finds otherwise.
-	// As a result, a value of '1' is mostly useful for cases where the record
-	// in question has only one valid value (such as public keys)
-	GetValues(c context.Context, k string, count int) ([]RecvdVal, error)
+	// Implementations of this methods won't return ErrNotFound. When a value
+	// couldn't be found, the channel will get closed without passing any results
+	SearchValue(context.Context, string, ...ropts.Option) (<-chan []byte, error)
 }
 
 // IpfsRouting is the combination of different routing types that ipfs
@@ -73,35 +78,46 @@ type IpfsRouting interface {
 	// TODO expose io.Closer or plain-old Close error
 }
 
-// RecvdVal represents a dht value record that has been received from a given peer
-// it is used to track peers with expired records in order to correct them.
-type RecvdVal struct {
-	From peer.ID
-	Val  []byte
-}
-
+// PubKeyFetcher is an interfaces that should be implemented by value stores
+// that can optimize retrieval of public keys.
+//
+// TODO(steb): Consider removing, see #22.
 type PubKeyFetcher interface {
+	// GetPublicKey returns the public key for the given peer.
 	GetPublicKey(context.Context, peer.ID) (ci.PubKey, error)
 }
 
 // KeyForPublicKey returns the key used to retrieve public keys
-// from the dht.
+// from a value store.
 func KeyForPublicKey(id peer.ID) string {
 	return "/pk/" + string(id)
 }
 
-func GetPublicKey(r ValueStore, ctx context.Context, pkhash []byte) (ci.PubKey, error) {
+// GetPublicKey retrieves the public key associated with the given peer ID from
+// the value store.
+//
+// If the ValueStore is also a PubKeyFetcher, this method will call GetPublicKey
+// (which may be better optimized) instead of GetValue.
+func GetPublicKey(r ValueStore, ctx context.Context, p peer.ID) (ci.PubKey, error) {
+	k, err := p.ExtractPublicKey()
+	if err != nil {
+		// An error means that the peer ID is invalid.
+		return nil, err
+	}
+	if k != nil {
+		return k, nil
+	}
+
 	if dht, ok := r.(PubKeyFetcher); ok {
 		// If we have a DHT as our routing system, use optimized fetcher
-		return dht.GetPublicKey(ctx, peer.ID(pkhash))
-	} else {
-		key := "/pk/" + string(pkhash)
-		pkval, err := r.GetValue(ctx, key)
-		if err != nil {
-			return nil, err
-		}
-
-		// get PublicKey from node.Data
-		return ci.UnmarshalPublicKey(pkval)
+		return dht.GetPublicKey(ctx, p)
 	}
+	key := KeyForPublicKey(p)
+	pkval, err := r.GetValue(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+
+	// get PublicKey from node.Data
+	return ci.UnmarshalPublicKey(pkval)
 }

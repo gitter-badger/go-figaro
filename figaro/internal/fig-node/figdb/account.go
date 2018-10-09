@@ -4,8 +4,8 @@ package figdb
 import (
 	"errors"
 
+	fdb "github.com/figaro-tech/go-fig-db"
 	"github.com/figaro-tech/go-figaro/figaro"
-	"github.com/figaro-tech/go-figaro/figdb"
 )
 
 // ErrInvalidAccount is returned when an address or db value for an account is not valid
@@ -65,7 +65,7 @@ func (db *DB) ValidateAccount(root figaro.Root, account *figaro.Account, proof [
 	if err != nil {
 		return false
 	}
-	return figdb.ValidateState(root, account.Address, buf, proof)
+	return fdb.ValidateState(root, account.Address, buf, proof)
 }
 
 // SaveAccountStorage saves binary key/value pair to the account's storage.
@@ -94,5 +94,5 @@ func (db *DB) ProveAccountStorage(account *figaro.Account, key []byte) ([]byte, 
 
 // ValidateAccountStorage validates a value at key in the account storage root against the Merkle proof.
 func (db *DB) ValidateAccountStorage(account *figaro.Account, key, data []byte, proof [][][]byte) bool {
-	return figdb.ValidateState(account.StorageRoot, key, data, proof)
+	return fdb.ValidateState(account.StorageRoot, key, data, proof)
 }

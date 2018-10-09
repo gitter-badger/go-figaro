@@ -2,8 +2,8 @@
 package figdb
 
 import (
+	fdb "github.com/figaro-tech/go-fig-db"
 	"github.com/figaro-tech/go-figaro/figaro"
-	"github.com/figaro-tech/go-figaro/figdb"
 )
 
 // ArchiveCommits archives Commits, returning the merkle root of the archive.
@@ -45,5 +45,5 @@ func (db *DB) GetAndProveCommit(root figaro.Root, index int) (Commits figaro.Com
 
 // ValidateCommit validates whether a proof is valid for a given Commit in root at index.
 func (db *DB) ValidateCommit(root figaro.Root, index int, commit figaro.Commit, proof [][]byte) bool {
-	return figdb.ValidateArchive(root, index, commit, proof)
+	return fdb.ValidateArchive(root, index, commit, proof)
 }

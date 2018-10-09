@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/figaro-tech/go-figaro/figp2p"
+	"github.com/figaro-tech/go-fig-p2p"
 	"github.com/multiformats/go-multiaddr"
 )
 

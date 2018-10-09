@@ -4,7 +4,7 @@ package figaro
 import (
 	"errors"
 
-	"github.com/figaro-tech/go-figaro/figbuf"
+	"github.com/figaro-tech/go-fig-buf"
 )
 
 var (

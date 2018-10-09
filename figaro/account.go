@@ -1,9 +1,7 @@
 // Package figaro is the main package for go-figaro
 package figaro
 
-import (
-	"github.com/figaro-tech/go-figaro/figbuf"
-)
+import "github.com/figaro-tech/go-fig-buf"
 
 // MaxCodeSize is the max length, in bytes, of account code storage. This is
 // a network configuration value, and does not impact consensus or validation

@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/figaro-tech/go-figaro/figcrypto/signature/fastsig"
+	"github.com/figaro-tech/go-fig-crypto/signature/fastsig"
 )
 
 // HashTypes are []byte hash types of length 32 with special functionality.

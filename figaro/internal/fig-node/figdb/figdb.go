@@ -2,24 +2,24 @@
 package figdb
 
 import (
-	"github.com/figaro-tech/go-figaro/figdb"
-	"github.com/figaro-tech/go-figaro/figdb/cache"
+	fdb "github.com/figaro-tech/go-fig-db"
+	"github.com/figaro-tech/go-fig-db/cache"
 )
 
 // DB is a domain Merkle database
 type DB struct {
-	*figdb.FigDB
+	*fdb.FigDB
 	blockcache *cache.FIFO
 }
 
 // New returns a FigDB backed by a high-performance disk database.
 func New(dir string, blockcachesize int) *DB {
-	db := figdb.New(dir)
+	db := fdb.New(dir)
 	return &DB{db, cache.NewFIFO(blockcachesize)}
 }
 
 // NewMem returns a FigDB backed by a high-performance memory database.
 func NewMem(dir, blockcachesize int) *DB {
-	db := figdb.NewMem()
+	db := fdb.NewMem()
 	return &DB{db, cache.NewFIFO(blockcachesize)}
 }

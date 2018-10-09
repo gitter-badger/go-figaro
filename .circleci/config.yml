@@ -1,27 +1,22 @@
 # Golang CircleCI 2.0 configuration file
 #
 # Check https://circleci.com/docs/2.0/language-go/ for more details
-version: 2
-jobs:
-  build:
-    docker:
-      - image: circleci/golang:1.10
 
-    working_directory: /go/src/github.com/figaro-tech/go-figaro
+version: 2.1
 
-    environment:
-      APP_FILES: ""
-      APP_PACKAGES: ""
-
+commands:
+  run_tests:
+    description: "Runs Tests"
     steps:
-      - checkout
-
-      # Caching is our friend
       - restore_cache:
-          keys:
-            - v1-pkg-cache
+          key: gopkg-{{ .Branch }}-{{ checksum "Gopkg.lock" }}
+          paths:
+            - /go/src/github.com/figaro-tech/go-figaro/vendor
 
-      # Testing Deps
+      - run: go build -v ./...
+      - run: go test -v ./...
+
+      # Auxiliary Test Dependencies
       - run: go get -u golang.org/x/lint/golint
       - run: go get -u github.com/client9/misspell/cmd/misspell
       - run: go get -u github.com/gordonklaus/ineffassign
@@ -36,10 +31,40 @@ jobs:
       # - run: misspell -error $(find . -type f -name '*.go' -not -path './vendor/*')
       # - run: gocyclo --over 15 $(find . -type f -name '*.go' -not -path './vendor/*')
 
-      # Unit Tests
-      - run: go test -v ./...
-
       - save_cache:
-          key: v1-pkg-cache
+          key: gopkg-{{ .Branch }}-{{ checksum "Gopkg.lock" }}
           paths:
-            - "/go/pkg"
+            - /go/src/github.com/figaro-tech/go-figaro/vendor
+
+jobs:
+  go_1_10:
+    docker:
+      - image: circleci/golang:1.10
+    working_directory: /go/src/github.com/figaro-tech/go-figaro
+    steps:
+      - checkout
+      - run_tests
+
+  go_1_11:
+    docker:
+      - image: circleci/golang:1.11
+    working_directory: /go/src/github.com/figaro-tech/go-figaro
+    steps:
+      - checkout
+      - run_tests
+
+  go_1_11_modules:
+    docker:
+      - image: circleci/golang:1.11
+        environment:
+          GO111MODULE: "on"
+    steps:
+      - checkout
+      - run_tests
+
+workflows:
+  build:
+    jobs:
+      - go_1_10
+      - go_1_11
+      - go_1_11_modules

@@ -4,8 +4,8 @@ package figdb
 import (
 	"crypto/md5"
 
+	"github.com/figaro-tech/go-fig-crypto/hasher"
 	"github.com/figaro-tech/go-figaro/figaro"
-	"github.com/figaro-tech/go-figaro/figcrypto/hasher"
 )
 
 // We prefix anything that is saved directly in the raw db, since

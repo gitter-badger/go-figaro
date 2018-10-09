@@ -1,9 +1,7 @@
 // Package figaro is the main package for go-figaro
 package figaro
 
-import (
-	"github.com/figaro-tech/go-figaro/figbuf"
-)
+import "github.com/figaro-tech/go-fig-buf"
 
 // Receipt is a record of a processed transaction.
 type Receipt struct {

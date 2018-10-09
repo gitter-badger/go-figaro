@@ -8,11 +8,11 @@ import (
 	"math"
 	"time"
 
-	"github.com/figaro-tech/go-figaro/figbuf"
-	"github.com/figaro-tech/go-figaro/figcrypto/hasher"
-	"github.com/figaro-tech/go-figaro/figcrypto/signature/fastsig"
-	"github.com/figaro-tech/go-figaro/figcrypto/trie"
-	"github.com/figaro-tech/go-figaro/figdb/bloom"
+	"github.com/figaro-tech/go-fig-buf"
+	"github.com/figaro-tech/go-fig-crypto/hasher"
+	"github.com/figaro-tech/go-fig-crypto/signature/fastsig"
+	"github.com/figaro-tech/go-fig-crypto/trie"
+	"github.com/figaro-tech/go-fig-db/bloom"
 )
 
 const (

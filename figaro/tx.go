@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/figaro-tech/go-figaro/figbuf"
-	"github.com/figaro-tech/go-figaro/figcrypto/hasher"
-	"github.com/figaro-tech/go-figaro/figcrypto/signature/fastsig"
+	"github.com/figaro-tech/go-fig-buf"
+	"github.com/figaro-tech/go-fig-crypto/hasher"
+	"github.com/figaro-tech/go-fig-crypto/signature/fastsig"
 )
 
 var (

@@ -2,8 +2,8 @@
 package figdb
 
 import (
+	fdb "github.com/figaro-tech/go-fig-db"
 	"github.com/figaro-tech/go-figaro/figaro"
-	"github.com/figaro-tech/go-figaro/figdb"
 )
 
 // ArchiveTransactions archives Transactions, returning the merkle root of the archive.
@@ -68,5 +68,5 @@ func (db *DB) ValidateTransaction(root figaro.Root, index int, tx figaro.Transac
 	if err != nil {
 		return false
 	}
-	return figdb.ValidateArchive(root, index, e, proof)
+	return fdb.ValidateArchive(root, index, e, proof)
 }

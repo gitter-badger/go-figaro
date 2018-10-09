@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/awalterschulze/gographviz"
-	"github.com/figaro-tech/go-figaro/figp2p"
+	"github.com/figaro-tech/go-fig-p2p"
 )
 
 var numHosts = 25

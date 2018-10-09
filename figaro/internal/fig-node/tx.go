@@ -1,9 +1,9 @@
 package internal
 
 import (
+	"github.com/figaro-tech/go-fig-crypto/signature/fastsig"
 	"github.com/figaro-tech/go-figaro/figaro"
 	"github.com/figaro-tech/go-figaro/figaro/internal/fig-node/figdb"
-	"github.com/figaro-tech/go-figaro/figcrypto/signature/fastsig"
 )
 
 // ValidateTx returns whether the transaction will fail if it is processed as the next transaction.
