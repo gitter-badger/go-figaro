@@ -1,50 +1,46 @@
 # go-figaro
 
-Official Figaro Blockchain - Go Version
+![banner](https://www.figaro.tech/images/social-previews/1200x630.png)
 
-## Performance Considerations
+[![project-docs](https://img.shields.io/badge/project-docs-blue.svg?style=flat)](https://docs.figaro.tech)
+[![repo-wiki](https://img.shields.io/badge/repo-wiki-blue.svg?style=flat)](https://github.com/figaro-tech/go-figaro/wiki)
+[![build](https://img.shields.io/circleci/project/github/figaro-tech/go-figaro/master.svg)](https://circleci.com/gh/figaro-tech/go-figaro)
+[![standard-readme](https://img.shields.io/badge/standard--readme-OK-green.svg?style=flat)](https://github.com/RichardLitt/standard-readme)
+![golang-version](https://img.shields.io/badge/golang-%3E%3D1.10.0-orange.svg?style=flat)
 
-- Uses Blake2b hash functions, which perform well on multi-core 64-bit architectures
-- Uses BadgerDB, which is optimized for fast SSD storage
+> Figaro platform implementation in Go
 
-## Data Storage
+TODO: Fill out this long description.
 
-Even with space-optimized storage schemes, targeting 56000 tx/sec means we need to make liberal use of pruning. Since we must prune regardless, Figaro balances performance, storage, and master-node/light-client dichotomies with the following storage scheme:
+## Table of Contents
 
-- Canonical chain head saved in store under prefix+"head"
-- Canonical chain blocks IDs saved in store under prefix+blockNum
-- Block headers saved in store under block ID
-- Block commits saved in archive trie w root in block header
-- Block transactions saved in archive trie w root in block header
-- Receipts saved in store under prefix+txid + root in block header
-- Accounts are saved in state trie under world state root + root in block header
-- Contract storage saved in state trie under account state root
+- [Install](#install)
+- [Usage](#usage)
+- [Maintainers](#maintainers)
+- [Contribute](#contribute)
+- [License](#license)
 
-### Block Variants
+## Install
 
-- Header: contains header information only
-- CompBlock: contains Header + commits bloom + transactions bloom (variable size, fixed 3% false positive rate)
-- RefBlock: contains Header + commits + transaction hashes (ids)
-- Block: contains Header + commits + transactions
+```
+go get github.com/figaro-tech/go-figaro
+```
 
-Each block variant is reproducible from headers alone by any full node variant.
+## Usage
 
-## WIP Data/Validation Protocols
+```
+```
 
-A light-client can request account data or contract storage data and a master-node can look up the address value under any valid state trie merkle root and provide an efficient proof if requested.
+## Maintainers
 
-For transaction data, a light-client can request by transaction ID, and a master-node can lookup the receipt directly, optionally returning a proof via receipt=>block=>transaction root=>archive trie proof. This means there is one canonical receipt for a transaction, and chain reorgs will overwrite the receipt.
+[@KCraw](https://github.com/KCraw) [@danmconrad](https://github.com/danmconrad)
 
-Light clients must keep local copies of block headers and canonical chain data, and reorg whenever a chain conflict is encountered. They may request block header (by id or by canonical number), transaction receipt/proofs, and state data/proofs from master-nodes at any time.
+## Contribute
 
-Master nodes, in addition to the requirements of a light client, must also validate incoming blocks by validating the block signature, provider, and header data; validating a heuristic subset of transactions; executing each transaction, updating state, and generating, validating, and saving each receipt; archiving the transactions and commits and validating the associated block roots. When providing a block, the same process must be followed, except that all transaction signatures must be verified. Master nodes may request missing block and/or transaction data from other master nodes.
+PRs accepted.
 
-PendingTxList is a list of received transactions awaiting validation, sorted by received timestamp. `QuickCheck` and `VerifySignature` should be called on each (using parallel threads if possible) and the transaction moved to the TxList.
+Small note: If editing the README, please conform to the [standard-readme](https://github.com/RichardLitt/standard-readme) specification.
 
-TxList is a map of nonce-ordered future transaction lists by account and a received timestamp ordered list of current transactions to be executed. When a transaction is added to the TxList, it is sorted into the current or future queues based on account nonce. When a transaction is pulled from the current queue, it is added into a block, which will sequentialy validate and execute the transactions in block order.
+## License
 
-## Demo
-
-To enable graph visualizations, install Graphviz:
-
-    brew install graphviz
+AGPLv3 © Figaro
