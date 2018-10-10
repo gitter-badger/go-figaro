@@ -5,14 +5,23 @@
 version: 2.1
 
 commands:
-  run_tests:
-    description: "Runs Tests"
+  cache_restore:
     steps:
       - restore_cache:
-          key: gopkg-{{ .Branch }}-{{ checksum "Gopkg.lock" }}
+          key: gopkg-v1-{{ .Branch }}-{{ checksum "Gopkg.lock" }}
           paths:
             - /go/src/github.com/figaro-tech/go-figaro/vendor
-
+  cache_save:
+    steps:
+      - save_cache:
+          key: gopkg-v1-{{ .Branch }}-{{ checksum "Gopkg.lock" }}
+          paths:
+            - /go/src/github.com/figaro-tech/go-figaro/vendor
+  dep:
+    steps:
+      - run: dep ensure -v --vendor-only
+  test:
+    steps:
       - run: go build -v ./...
       - run: go test -v ./...
 
@@ -31,11 +40,6 @@ commands:
       # - run: misspell -error $(find . -type f -name '*.go' -not -path './vendor/*')
       # - run: gocyclo --over 15 $(find . -type f -name '*.go' -not -path './vendor/*')
 
-      - save_cache:
-          key: gopkg-{{ .Branch }}-{{ checksum "Gopkg.lock" }}
-          paths:
-            - /go/src/github.com/figaro-tech/go-figaro/vendor
-
 jobs:
   go_1_10:
     docker:
@@ -43,7 +47,10 @@ jobs:
     working_directory: /go/src/github.com/figaro-tech/go-figaro
     steps:
       - checkout
-      - run_tests
+      - cache_restore
+      - dep
+      - test
+      - cache_save
 
   go_1_11:
     docker:
@@ -51,7 +58,10 @@ jobs:
     working_directory: /go/src/github.com/figaro-tech/go-figaro
     steps:
       - checkout
-      - run_tests
+      - cache_restore
+      - dep
+      - test
+      - cache_save
 
   go_1_11_modules:
     docker:
@@ -60,7 +70,7 @@ jobs:
           GO111MODULE: "on"
     steps:
       - checkout
-      - run_tests
+      - test
 
 workflows:
   build:
