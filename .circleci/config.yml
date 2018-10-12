@@ -40,6 +40,11 @@ commands:
       # - run: misspell -error $(find . -type f -name '*.go' -not -path './vendor/*')
       # - run: gocyclo --over 15 $(find . -type f -name '*.go' -not -path './vendor/*')
 
+  cover:
+    steps:
+      - run: go test ./... -race -coverprofile=coverage.txt -covermode=atomic
+      - run: bash <(curl -s https://codecov.io/bash)
+
 jobs:
   go_1_10:
     docker:
@@ -71,6 +76,7 @@ jobs:
     steps:
       - checkout
       - test
+      - cover
 
 workflows:
   build:
