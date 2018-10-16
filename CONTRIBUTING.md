@@ -4,7 +4,7 @@
 
 ## Think you found a bug or missing feature?
 
-Check out the [issue tracker]() to see if the bug you may have found is something we're already tackling.
+Check out the [issue tracker](/../../issues) to see if the bug you may have found is something we're already tackling.
 
 ## What's next?
 
