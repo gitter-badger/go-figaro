@@ -37,9 +37,7 @@ go get github.com/figaro-tech/go-figaro
 
 ## Contribute
 
-PRs accepted.
-
-Small note: If editing the README, please conform to the [standard-readme](https://github.com/RichardLitt/standard-readme) specification.
+Hey! First off, you're awesome. Second, take a look at the [Contribution Guidelines](CONTRIBUTING.md) for more information.
 
 ## License
 
