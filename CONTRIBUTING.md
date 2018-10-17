@@ -8,7 +8,7 @@ Check out the [issue tracker](/../../issues) to see if the bug you may have foun
 
 ## What's next?
 
-Simple! We try to keep contribution pretty consistent across our repositories. Give these a quick read and report back!
+We try to keep contribution pretty consistent across our repositories. Give these a quick read and report back!
 
-- [General Contribution Guidelines](https://docs.figaro.tech/community/contributing.html)
-- [Golang Contribution Guidelines](https://docs.figaro.tech/community/contributing/golang.html).
+- [Contributing to Figaro Projects](https://docs.figaro.tech/community/contributing.html)
+- [Contributing to Golang Figaro Projects](https://docs.figaro.tech/community/contributing/golang.html)
