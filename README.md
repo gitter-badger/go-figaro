@@ -37,7 +37,7 @@ go get github.com/figaro-tech/go-figaro
 
 ## Contribute
 
-Hey! First off, you're awesome. Second, take a look at the [Contribution Guidelines](CONTRIBUTING.md) for more information.
+Take a look at the [Contribution Guidelines](CONTRIBUTING.md) for more information.
 
 ## License
 
