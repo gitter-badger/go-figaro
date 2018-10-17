@@ -1,12 +1,16 @@
 # Contributing
 
-👍 You're the best.
+We appreciate the help. You're the best. 👍
 
-## Think you found a bug or missing feature?
+### 1. Check out the [Issue Tracker](/../../issues)
 
-Check out the [issue tracker](/../../issues) to see if the bug you may have found is something we're already tackling.
+Maybe we're already fixing the issue. If not...
 
-## What's next?
+### 2. Start a discussion in the [Gitter Room](https://gitter.im/figaro-tech/go-figaro)
+
+Where does your contribution fit into our timeline? Is it a bug other people are seeing? Is it a feature other people want? Let's figure it out together.
+
+### 3. Make a contribution.
 
 We try to keep contribution pretty consistent across our repositories. Give these a quick read and report back!
 

@@ -16,6 +16,7 @@ TODO: Fill out this long description.
 
 - [Install](#install)
 - [Usage](#usage)
+- [Development](#development)
 - [Maintainers](#maintainers)
 - [Contribute](#contribute)
 - [License](#license)
@@ -27,6 +28,11 @@ go get github.com/figaro-tech/go-figaro
 ```
 
 ## Usage
+
+```
+```
+
+## Development
 
 ```
 ```
