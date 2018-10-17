@@ -2,7 +2,8 @@
 
 ![banner](https://www.figaro.tech/images/social-previews/1200x630.png)
 
-[![project-docs](https://img.shields.io/badge/project-docs-blue.svg?style=flat)](https://docs.figaro.tech)
+[![figaro-docs](https://img.shields.io/badge/figaro-docs-blue.svg?style=flat)](https://docs.figaro.tech)
+[![gitter-room](https://img.shields.io/badge/gitter-room-purple.svg?style=flat)](https://gitter.im/figaro-tech/go-figaro)
 [![build](https://img.shields.io/circleci/project/github/figaro-tech/go-figaro/master.svg)](https://circleci.com/gh/figaro-tech/go-figaro)
 [![standard-readme](https://img.shields.io/badge/standard--readme-OK-green.svg?style=flat)](https://github.com/RichardLitt/standard-readme)
 ![golang-version](https://img.shields.io/badge/golang-%3E%3D1.10.0-orange.svg?style=flat)
